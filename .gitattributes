@@ -1,0 +1,12 @@
+# Windows batch dosyalari daima CRLF olarak korunsun
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# PowerShell script'leri Windows'ta yaygin CRLF
+*.ps1 text eol=crlf
+
+# Maven Wrapper Unix script'leri LF olarak korunsun
+mvnw text eol=lf
+
+# Shell script'leri LF
+*.sh text eol=lf
