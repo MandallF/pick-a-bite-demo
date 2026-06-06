@@ -42,3 +42,9 @@ venv/
 # Build artifacts
 build/
 out/
+
+# Demo runtime artifacts
+expo-tunnel-qr.png
+pick-a-bite-backend/data/
+*.mv.db
+*.trace.db

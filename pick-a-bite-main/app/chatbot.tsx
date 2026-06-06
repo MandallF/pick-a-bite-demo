@@ -28,8 +28,15 @@ const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? "http://localhost:808
 
 // ─── YARDIMCI: ZAMAN AŞIMLI FETCH ────────────
 const fetchWithTimeout = async (url: string, options: any = {}, timeout = 4000): Promise<Response> => {
+  // localtunnel & ngrok için bypass header'ları + custom User-Agent
+  const headers = {
+    "bypass-tunnel-reminder": "true",
+    "ngrok-skip-browser-warning": "true",
+    "User-Agent": "PickABite/1.0",
+    ...(options.headers || {}),
+  };
   return Promise.race([
-    fetch(url, options),
+    fetch(url, { ...options, headers }),
     new Promise<Response>((_, reject) =>
       setTimeout(() => reject(new Error("Timeout")), timeout)
     ),
@@ -125,31 +132,52 @@ interface Restaurant {
   menuler: MenuItem[];
 }
 
-// ─── BACKEND'DEN TÜM RESTORANLARI ÇEK ────────
+// ─── BACKEND'DEN TÜM RESTORANLARI + MENÜLERİ ÇEK ────────
 const fetchAllRestaurantsFromBackend = async (): Promise<Restaurant[]> => {
   try {
-    const res = await fetchWithTimeout(`${BACKEND_URL}/restoranlar`, {}, 4000);
+    // 1) Restoran listesini al
+    const res = await fetchWithTimeout(`${BACKEND_URL}/restoranlar`, {}, 6000);
     if (!res.ok) throw new Error("Backend response not ok");
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) return [];
+    const restoranList = await res.json();
+    if (!Array.isArray(restoranList) || restoranList.length === 0) return [];
 
-    return data.map((r: any) => ({
-      ad: r.ad || "Bilinmeyen Restoran",
-      adres: r.adres || "",
-      menuler: Array.isArray(r.menuKategorileri)
-        ? r.menuKategorileri.flatMap((k: any) =>
-          Array.isArray(k.urunler)
-            ? k.urunler.map((u: any) => ({
-              urunAdi: u.urunAdi || "",
-              fiyat: typeof u.fiyat === "number" ? u.fiyat : 0,
-              kategori: k.kategoriAdi || "",
-              aciklama: u.aciklama || "",
-              etiketler: u.etiketler || [],
-            }))
-            : []
-        )
-        : [],
-    }));
+    // 2) Her restoran için menüyü paralel çek
+    const restaurantsWithMenu = await Promise.all(
+      restoranList.map(async (r: any) => {
+        const baseName = r.restoranAdi || r.ad || "Bilinmeyen Restoran";
+        try {
+          const menuRes = await fetchWithTimeout(
+            `${BACKEND_URL}/restoranlar/${r.id}/menu`,
+            {},
+            6000
+          );
+          if (!menuRes.ok) {
+            return { ad: baseName, adres: r.adres || "", menuler: [] };
+          }
+          const menuData = await menuRes.json();
+          const kategoriler = Array.isArray(menuData.kategoriler) ? menuData.kategoriler : [];
+
+          const menuler: MenuItem[] = kategoriler.flatMap((k: any) =>
+            Array.isArray(k.urunler)
+              ? k.urunler.map((u: any) => ({
+                  urunAdi: u.urunAdi || "",
+                  fiyat: typeof u.fiyat === "number" ? u.fiyat : 0,
+                  kategori: k.kategoriAdi || "",
+                  aciklama: u.aciklama || "",
+                  etiketler: Array.isArray(u.alerjenler) ? u.alerjenler : [],
+                }))
+              : []
+          );
+
+          return { ad: baseName, adres: r.adres || "", menuler };
+        } catch (err) {
+          console.warn(`Menü çekilemedi (${baseName}):`, err);
+          return { ad: baseName, adres: r.adres || "", menuler: [] };
+        }
+      })
+    );
+
+    return restaurantsWithMenu;
   } catch (e) {
     console.warn("Backend'e ulaşılamadı:", e);
     return [];
