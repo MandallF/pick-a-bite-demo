@@ -124,7 +124,7 @@ echo.
 
 REM --- 5) Expo baslat (ayri pencerede - kullanici QR'i orada gorur) ---
 echo [5/5] Expo (frontend) baslatiliyor...
-start "Pick A Bite - Expo Tunnel" /D "%FRONTEND_DIR%" cmd /k "set CI=1 && npx expo start --tunnel --clear"
+start "Pick A Bite - Expo Tunnel" /D "%FRONTEND_DIR%" cmd /k "set CI=true&& npx expo start --tunnel --clear"
 echo       Expo ayri pencerede acildi, QR kodu orada gorunecek (1-2 dk)
 echo.
 
