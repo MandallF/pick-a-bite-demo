@@ -122,10 +122,34 @@ if errorlevel 1 (
 echo       OK
 echo.
 
-REM --- 5) Expo baslat (ayri pencerede - kullanici QR'i orada gorur) ---
+REM --- 5) Expo baslat - CI=true KULLANMA (QR'i kapatir) ---
 echo [5/5] Expo (frontend) baslatiliyor...
-start "Pick A Bite - Expo Tunnel" /D "%FRONTEND_DIR%" cmd /k "set CI=true&& npx expo start --tunnel --clear"
-echo       Expo ayri pencerede acildi, QR kodu orada gorunecek (1-2 dk)
+start "Pick A Bite - Expo Tunnel" /D "%FRONTEND_DIR%" cmd /k "npx expo start --tunnel --clear"
+echo       Expo ayri pencerede acildi, hazir olmasi ~30 saniye
+echo.
+
+REM --- 6) Expo URL'i bekle + QR PNG olustur (bat penceresinde de gosterim) ---
+echo [Bonus] Yedek QR PNG olusturuluyor...
+echo       Expo'nun hazir olmasi bekleniyor (30sn)...
+timeout /t 30 /nobreak >nul
+
+REM Expo manifest'ten hostUri'yi cek
+set "EXPO_HOST="
+for /f "delims=" %%a in ('powershell -NoProfile -Command "try { (Invoke-RestMethod -Uri 'http://localhost:8081' -Headers @{'exponent-platform'='ios'} -TimeoutSec 5 -ErrorAction Stop).extra.expoClient.hostUri } catch { '' }"') do (
+    if not "%%a"=="" set "EXPO_HOST=%%a"
+)
+
+if not defined EXPO_HOST (
+    echo       UYARI: Expo URL'i alinamadi. Expo penceresinde QR'a bak.
+) else (
+    echo       Expo URL: exp://!EXPO_HOST!
+    REM QR PNG olustur
+    py -c "import qrcode; url='exp://!EXPO_HOST!'; qr=qrcode.QRCode(box_size=12,border=4); qr.add_data(url); qr.make(); qr.make_image().save(r'%ROOT%expo-qr.png')" 2>nul
+    if exist "%ROOT%expo-qr.png" (
+        echo       QR PNG kaydedildi: %ROOT%expo-qr.png
+        start "" "%ROOT%expo-qr.png"
+    )
+)
 echo.
 
 echo ==========================================================
@@ -135,13 +159,13 @@ echo.
 echo   Backend  : http://localhost:8080/pick-a-bite
 echo   Tunnel   : %TUNNEL_URL%
 echo   Expo Go  : "Pick A Bite - Expo Tunnel" penceresinde QR var
+echo              VEYA acilan expo-qr.png dosyasini telefondan tara
 echo.
 echo   ONEMLI: BU PENCEREYI KAPATMAYIN!
 echo   Pencere acik kaldigi surece demo calismaya devam eder.
 echo.
 echo   Kapatmak isterseniz: taskkill /F /IM cloudflared.exe /IM java.exe /IM node.exe
 echo.
-echo   Pencere kapanmadan onlemek icin bu komut sonsuz dongude bekler:
 :keepalive
 timeout /t 600 /nobreak >nul
 goto keepalive
