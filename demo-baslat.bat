@@ -1,5 +1,4 @@
 @echo off
-chcp 65001 >nul 2>&1
 setlocal enabledelayedexpansion
 
 REM ======================================================================
@@ -8,13 +7,13 @@ REM Backend + Cloudflare Tunnel + Expo'yu ayri pencerelerde acar
 REM ======================================================================
 
 cd /d "%~dp0"
-set ROOT=%~dp0
-set BACKEND_DIR=%ROOT%pick-a-bite-backend
-set FRONTEND_DIR=%ROOT%pick-a-bite-main
-set ENV_FILE=%FRONTEND_DIR%\.env
-set CF_LOG=%TEMP%\cf_tunnel.log
-set BE_LOG=%TEMP%\backend.log
-set JAVA_HOME=C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot
+set "ROOT=%~dp0"
+set "BACKEND_DIR=%ROOT%pick-a-bite-backend"
+set "FRONTEND_DIR=%ROOT%pick-a-bite-main"
+set "ENV_FILE=%FRONTEND_DIR%\.env"
+set "CF_LOG=%TEMP%\cf_tunnel.log"
+set "CF_ERR=%TEMP%\cf_tunnel.err"
+set "BE_LOG=%TEMP%\backend.log"
 
 echo.
 echo ==========================================================
@@ -25,32 +24,45 @@ echo.
 REM --- 1) Eski process'leri temizle ---
 echo [1/5] Eski servisleri kapatiyor...
 taskkill /F /IM cloudflared.exe >nul 2>&1
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr /R /C:":8080.*LISTENING"') do taskkill /F /PID %%a >nul 2>&1
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr /R /C:":8081.*LISTENING"') do taskkill /F /PID %%a >nul 2>&1
-timeout /t 2 /nobreak >nul
+taskkill /F /IM java.exe >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr /R /C:":8080 .* LISTENING"') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr /R /C:":8081 .* LISTENING"') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
+timeout /t 3 /nobreak >nul
 echo       OK
 echo.
 
-REM --- 2) Backend baslat (ayri pencerede) ---
+REM --- 2) Backend baslat (pushd ile cwd ayarla, start subprocess inherit eder) ---
 echo [2/5] Backend (Spring Boot) baslatiliyor...
-start "Pick A Bite - Backend" /MIN cmd /c "cd /d %BACKEND_DIR% && set JAVA_HOME=%JAVA_HOME% && set PATH=%JAVA_HOME%\bin;%PATH% && mvnw.cmd spring-boot:run > %BE_LOG% 2>&1"
+if exist "%BE_LOG%" del "%BE_LOG%" >nul 2>&1
+
+REM /D ile subprocess'in cwd'sini explicit ayarla
+start "Pick A Bite - Backend" /MIN /D "%BACKEND_DIR%" cmd /c "mvnw.cmd spring-boot:run > %BE_LOG% 2>&1"
+
 echo       Backend baslatildi, hazir olmasi bekleniyor...
 
 set /a tries=0
 :wait_backend
-timeout /t 2 /nobreak >nul
+timeout /t 3 /nobreak >nul
 set /a tries+=1
-curl -s -o nul -w "%%{http_code}" http://localhost:8080/pick-a-bite/restoranlar >temp_code.txt 2>nul
-set /p HTTP_CODE=<temp_code.txt
-del temp_code.txt >nul 2>&1
-if "%HTTP_CODE%"=="200" goto backend_ready
-if %tries% GEQ 60 (
-    echo       HATA: Backend hazir olmadi 120 saniye icinde
+curl -s -o nul -w "%%{http_code}" http://localhost:8080/pick-a-bite/restoranlar >"%TEMP%\hc.txt" 2>nul
+set /p HTTP_CODE=<"%TEMP%\hc.txt"
+del "%TEMP%\hc.txt" >nul 2>&1
+if "!HTTP_CODE!"=="200" goto backend_ready
+if !tries! GEQ 80 (
+    echo.
+    echo       HATA: Backend 240 saniye icinde hazir olmadi
     echo       Log: %BE_LOG%
+    echo.
+    echo       Log'un ilk 20 satiri:
+    powershell -NoProfile -Command "Get-Content '%BE_LOG%' -ErrorAction SilentlyContinue | Select-Object -First 20"
     pause
     exit /b 1
 )
-echo|set /p="."
+<nul set /p ="."
 goto wait_backend
 :backend_ready
 echo.
@@ -59,40 +71,40 @@ echo.
 
 REM --- 3) Cloudflare Tunnel baslat ---
 echo [3/5] Cloudflare Tunnel baslatiliyor...
-set CF_EXE=%LOCALAPPDATA%\Microsoft\WinGet\Packages\Cloudflare.cloudflared_Microsoft.Winget.Source_8wekyb3d8bbwe\cloudflared.exe
+
+set "CF_EXE=%LOCALAPPDATA%\Microsoft\WinGet\Packages\Cloudflare.cloudflared_Microsoft.Winget.Source_8wekyb3d8bbwe\cloudflared.exe"
 if not exist "%CF_EXE%" (
     where cloudflared >nul 2>&1
     if errorlevel 1 (
-        echo       HATA: cloudflared bulunamadi. winget install Cloudflare.cloudflared
+        echo       HATA: cloudflared bulunamadi.
+        echo       Kur: winget install Cloudflare.cloudflared
         pause
         exit /b 1
     )
-    set CF_EXE=cloudflared
+    set "CF_EXE=cloudflared"
 )
 
-if exist "%CF_LOG%" del "%CF_LOG%"
-start "Pick A Bite - Cloudflare Tunnel" /MIN cmd /c ""%CF_EXE%" tunnel --url http://localhost:8080 --no-autoupdate > %CF_LOG% 2>&1"
+if exist "%CF_LOG%" del "%CF_LOG%" >nul 2>&1
+if exist "%CF_ERR%" del "%CF_ERR%" >nul 2>&1
+
+start "Pick A Bite - Cloudflare Tunnel" /MIN cmd /c "%CF_EXE% tunnel --url http://localhost:8080 --no-autoupdate > %CF_LOG% 2> %CF_ERR%"
 echo       Cloudflared baslatildi, URL bekleniyor...
 
-set TUNNEL_URL=
+set "TUNNEL_URL="
 set /a tries=0
 :wait_cf
 timeout /t 2 /nobreak >nul
 set /a tries+=1
-for /f "tokens=*" %%a in ('findstr /R /C:"https://[a-z0-9-]*\.trycloudflare\.com" "%CF_LOG%" 2^>nul') do (
-    for /f "tokens=*" %%b in ('echo %%a ^| findstr /R /O "https://[a-z0-9-]*\.trycloudflare\.com"') do (
-        rem ok
-    )
-)
-REM PowerShell ile regex match (en güvenilir)
-for /f "delims=" %%a in ('powershell -NoProfile -Command "(Select-String -Path '%CF_LOG%' -Pattern 'https://[a-z0-9-]+\.trycloudflare\.com' -ErrorAction SilentlyContinue | Select-Object -First 1).Matches[0].Value"') do set TUNNEL_URL=%%a
-if not "%TUNNEL_URL%"=="" goto cf_ready
-if %tries% GEQ 30 (
-    echo       HATA: Cloudflare URL alinamadi
+for /f "delims=" %%a in ('powershell -NoProfile -Command "$m = (Select-String -Path @('%CF_LOG%','%CF_ERR%') -Pattern 'https://[a-z0-9-]+\.trycloudflare\.com' -ErrorAction SilentlyContinue | Select-Object -First 1); if ($m) { $m.Matches[0].Value }"') do set "TUNNEL_URL=%%a"
+if defined TUNNEL_URL goto cf_ready
+if !tries! GEQ 30 (
+    echo.
+    echo       HATA: Cloudflare URL 60 saniyede alinamadi
+    echo       Log: %CF_LOG%
     pause
     exit /b 1
 )
-echo|set /p="."
+<nul set /p ="."
 goto wait_cf
 :cf_ready
 echo.
@@ -102,13 +114,18 @@ echo.
 REM --- 4) .env'i guncelle ---
 echo [4/5] .env guncelleniyor...
 powershell -NoProfile -Command "(Get-Content '%ENV_FILE%') -replace 'EXPO_PUBLIC_BACKEND_URL=.*', 'EXPO_PUBLIC_BACKEND_URL=%TUNNEL_URL%/pick-a-bite' | Set-Content '%ENV_FILE%' -Encoding UTF8"
+if errorlevel 1 (
+    echo       HATA: .env guncellenemedi
+    pause
+    exit /b 1
+)
 echo       OK
 echo.
 
-REM --- 5) Expo baslat (ayri pencerede) ---
+REM --- 5) Expo baslat (ayri pencerede - kullanici QR'i orada gorur) ---
 echo [5/5] Expo (frontend) baslatiliyor...
-start "Pick A Bite - Expo Tunnel" cmd /k "cd /d %FRONTEND_DIR% && set CI=1 && npx expo start --tunnel --clear"
-echo       Expo ayri pencerede acildi, QR kodu orada gorunecek
+start "Pick A Bite - Expo Tunnel" /D "%FRONTEND_DIR%" cmd /k "set CI=1 && npx expo start --tunnel --clear"
+echo       Expo ayri pencerede acildi, QR kodu orada gorunecek (1-2 dk)
 echo.
 
 echo ==========================================================
@@ -119,7 +136,7 @@ echo   Backend  : http://localhost:8080/pick-a-bite
 echo   Tunnel   : %TUNNEL_URL%
 echo   Expo Go  : Yeni acilan pencerede QR'i tarayin
 echo.
-echo   Durdurmak icin: bu pencereyi kapatin veya:
-echo     taskkill /F /IM cloudflared.exe /IM java.exe /IM node.exe
+echo   Durdurmak icin: bu pencereyi kapatin
+echo   veya: taskkill /F /IM cloudflared.exe /IM java.exe /IM node.exe
 echo.
 pause
