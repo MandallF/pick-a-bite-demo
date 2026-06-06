@@ -134,9 +134,14 @@ echo ==========================================================
 echo.
 echo   Backend  : http://localhost:8080/pick-a-bite
 echo   Tunnel   : %TUNNEL_URL%
-echo   Expo Go  : Yeni acilan pencerede QR'i tarayin
+echo   Expo Go  : "Pick A Bite - Expo Tunnel" penceresinde QR var
 echo.
-echo   Durdurmak icin: bu pencereyi kapatin
-echo   veya: taskkill /F /IM cloudflared.exe /IM java.exe /IM node.exe
+echo   ONEMLI: BU PENCEREYI KAPATMAYIN!
+echo   Pencere acik kaldigi surece demo calismaya devam eder.
 echo.
-pause
+echo   Kapatmak isterseniz: taskkill /F /IM cloudflared.exe /IM java.exe /IM node.exe
+echo.
+echo   Pencere kapanmadan onlemek icin bu komut sonsuz dongude bekler:
+:keepalive
+timeout /t 600 /nobreak >nul
+goto keepalive
