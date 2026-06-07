@@ -2,8 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Camera } from "expo-camera";
 import * as Location from "expo-location";
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,7 +28,7 @@ export default function HomeScreen() {
   const [userPrefs, setUserPrefs] = useState<string[]>([]);
   const [locationGranted, setLocationGranted] = useState(false);
 
-  // Konum izni + profil tercihleri + restoran verisi
+  // İlk açılış: konum izni + restoran verisi (bir kez)
   useEffect(() => {
     (async () => {
       // 1) Konum izni (gereksinim: konum tabanlı keşif)
@@ -46,15 +46,7 @@ export default function HomeScreen() {
         /* izin akışı başarısız — varsayılan bölge ile devam */
       }
 
-      // 2) Profil tercihleri (uygunluk işaretlemesi için)
-      try {
-        const saved = await AsyncStorage.getItem("userPreferences");
-        if (saved) setUserPrefs(JSON.parse(saved));
-      } catch {
-        /* ignore */
-      }
-
-      // 3) Restoranlar + menüleri (mesafe + uygunluk için)
+      // 2) Restoranlar + menüleri (mesafe + uygunluk için)
       try {
         const data = await fetchAllRestaurantsFromBackend();
         setRestaurants(data);
@@ -65,6 +57,17 @@ export default function HomeScreen() {
       }
     })();
   }, []);
+
+  // Profil tercihleri: ekran HER odaklandığında tazelenir.
+  // (Bu ekran bir tab olduğu için bellekte kalır; profilden dönünce
+  // useEffect yeniden çalışmaz — bu yüzden useFocusEffect gerekir.)
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem("userPreferences")
+        .then((saved) => setUserPrefs(saved ? JSON.parse(saved) : []))
+        .catch(() => setUserPrefs([]));
+    }, [])
+  );
 
   // Tercihe uygun en az bir ürünü olan restoran mı?
   const uygunMu = (rest: Restaurant): boolean =>
@@ -158,7 +161,7 @@ export default function HomeScreen() {
               onPress={() => handleRestaurantPress(item)}
               activeOpacity={0.8}
             >
-              <View style={styles.listIcon}>
+              <View style={[styles.listIcon, { backgroundColor: pinRengi(item) }]}>
                 <Ionicons name="restaurant" size={22} color="white" />
               </View>
               <View style={{ flex: 1 }}>
