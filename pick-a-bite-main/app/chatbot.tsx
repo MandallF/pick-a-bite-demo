@@ -15,33 +15,18 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { apiFetch, BACKEND_URL } from "../lib/api";
 
 // ─── TİP TANIMLARI ───────────────────────────
 type Role = "user" | "assistant";
 interface Message { id: string; role: Role; text: string; timestamp: Date; }
 
 // ─── YAPILANDIRMA ─────────────────────────────
-// API Key .env.local dosyasından gelir — GitHub'a YÜKLENMEz
+// API Key .env dosyasından gelir — GitHub'a YÜKLENMEZ (.gitignore içinde)
 const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY ?? "";
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? "http://localhost:8080/pick-a-bite";
-
-// ─── YARDIMCI: ZAMAN AŞIMLI FETCH ────────────
-const fetchWithTimeout = async (url: string, options: any = {}, timeout = 4000): Promise<Response> => {
-  // localtunnel & ngrok için bypass header'ları + custom User-Agent
-  const headers = {
-    "bypass-tunnel-reminder": "true",
-    "ngrok-skip-browser-warning": "true",
-    "User-Agent": "PickABite/1.0",
-    ...(options.headers || {}),
-  };
-  return Promise.race([
-    fetch(url, { ...options, headers }),
-    new Promise<Response>((_, reject) =>
-      setTimeout(() => reject(new Error("Timeout")), timeout)
-    ),
-  ]);
-};
+// fetchWithTimeout, merkezi lib/api.ts'teki apiFetch'in takma adıdır.
+const fetchWithTimeout = apiFetch;
 
 const PREF_LABELS: Record<string, string> = {
   vegan: "Vegan", vegetarian: "Vejetaryen", gluten_free: "Glutensiz",
@@ -350,7 +335,7 @@ KURALLAR:
         return "⏳ Çok hızlı istek. Biraz bekleyip tekrar deneyin.";
       }
       if (res.status === 401 || res.status === 403) {
-        return "🔑 API anahtarı geçersiz. Lütfen .env.local kontrol edin.";
+        return "🔑 API anahtarı geçersiz. Lütfen .env kontrol edin.";
       }
       return `⚠️ API Hata ${res.status}. Biraz sonra tekrar deneyin.`;
     }

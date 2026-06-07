@@ -45,6 +45,9 @@ out/
 
 # Demo runtime artifacts
 expo-tunnel-qr.png
+expo-qr.png
 pick-a-bite-backend/data/
 *.mv.db
 *.trace.db
+# Cloudflare tunnel log (geçici)
+cf_tunnel.log

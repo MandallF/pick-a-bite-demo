@@ -12,9 +12,7 @@ import {
   View,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
-
-const BACKEND_URL =
-  process.env.EXPO_PUBLIC_BACKEND_URL ?? "http://localhost:8080/pick-a-bite";
+import { apiJSON } from "../../lib/api";
 
 interface BackendRestaurant {
   id: number;
@@ -25,26 +23,6 @@ interface BackendRestaurant {
   aciklama?: string;
   qrKod?: string;
 }
-
-// Yardımcı: tunnel uyumlu fetch
-const fetchJSON = async (url: string, timeoutMs = 6000): Promise<any> => {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, {
-      headers: {
-        "bypass-tunnel-reminder": "true",
-        "ngrok-skip-browser-warning": "true",
-        "User-Agent": "PickABite/1.0",
-      },
-      signal: controller.signal,
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } finally {
-    clearTimeout(timer);
-  }
-};
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -57,7 +35,7 @@ export default function HomeScreen() {
   useEffect(() => {
     const loadRestaurants = async () => {
       try {
-        const data = await fetchJSON(`${BACKEND_URL}/restoranlar`);
+        const data = await apiJSON<BackendRestaurant[]>("/restoranlar");
         if (Array.isArray(data)) {
           setRestaurants(data);
         }

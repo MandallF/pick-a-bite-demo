@@ -10,9 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-const BACKEND_URL =
-  process.env.EXPO_PUBLIC_BACKEND_URL ?? "http://localhost:8080/pick-a-bite";
+import { apiJSON } from "../../lib/api";
 
 interface Urun {
   id: number;
@@ -42,25 +40,6 @@ interface MenuResponse {
   kategoriler: Kategori[];
 }
 
-const fetchJSON = async (url: string, timeoutMs = 8000): Promise<any> => {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, {
-      headers: {
-        "bypass-tunnel-reminder": "true",
-        "ngrok-skip-browser-warning": "true",
-        "User-Agent": "PickABite/1.0",
-      },
-      signal: controller.signal,
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } finally {
-    clearTimeout(timer);
-  }
-};
-
 export default function RestaurantScreen() {
   const router = useRouter();
   const { id, ad } = useLocalSearchParams<{ id: string; ad?: string }>();
@@ -71,7 +50,7 @@ export default function RestaurantScreen() {
   useEffect(() => {
     const loadMenu = async () => {
       try {
-        const data = await fetchJSON(`${BACKEND_URL}/restoranlar/${id}/menu`);
+        const data = await apiJSON<MenuResponse>(`/restoranlar/${id}/menu`, {}, 8000);
         setMenu(data);
       } catch (err: any) {
         setError(err?.message ?? "Menü yüklenemedi");
