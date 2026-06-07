@@ -45,10 +45,25 @@ KURALLAR:
 1. Sorguyu analiz et ve kesin önerileri ver
 2. Fiyat belirtilmişse o fiyat sınırını aşma
 3. Sadece menüde olan ürünleri göster, asla uydurma
-4. Ürün varsa adı + fiyatı göster
-5. Türkçe, kısa, net cevap ver
-6. Ürün yoksa dürüstçe söyle
-7. Menü bilgisi verildiyse YALNIZCA o menüdeki ürünleri öner`;
+4. Türkçe, kısa, net cevap ver
+5. Ürün yoksa dürüstçe söyle
+6. Menü bilgisi verildiyse YALNIZCA o menüdeki ürünleri öner
+
+EN ÖNEMLİ KURAL — RESTORANA GÖRE GRUPLA:
+Kullanıcı hangi restorana gideceğini bilmek ister. Bu yüzden önerileri
+DÜZ LİSTE olarak verme. Her zaman restorana göre grupla: önce restoran
+adını başlık yap, altına o restorandaki uygun ürünleri ve fiyatlarını yaz.
+
+ÖRNEK ÇIKTI FORMATI:
+📍 Tatlıcı Safa
+   • Fırın Sütlaç — ₺80
+   • Kazandibi — ₺90
+
+📍 Lezzet Kebapçısı
+   • Tavuk Şiş — ₺200
+
+Her ürünün hangi restoranda olduğu net görünmeli. Aynı ürün birden çok
+restoranda varsa hepsini ayrı ayrı göster ki kullanıcı en uygun yeri seçsin.`;
 
   // Groq API için messages formatı
   const messages: any[] = [{ role: "system", content: systemPrompt }];

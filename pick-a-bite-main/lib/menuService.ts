@@ -154,10 +154,17 @@ export const extractSearchCriteria = (query: string): SearchCriteria => {
     }
   }
 
-  // Diğer anahtar kelimeleri yakala
+  // Diğer anahtar kelimeleri yakala — soru/dolgu kelimelerini ele (stopwords)
+  const STOPWORDS = [
+    "altı", "altında", "altinda", "üstü", "ustu", "üzeri", "uzeri",
+    "tl", "₺", "veya", "ile", "için", "icin", "bir", "bana", "için",
+    "öner", "oner", "önerir", "istiyorum", "ister", "var", "yok",
+    "nedir", "neler", "hangi", "kadar", "arası", "arasi", "ne", "mi",
+    "misin", "lütfen", "lutfen", "yemek", "yiyecek",
+  ];
   const words = query.toLowerCase().split(/\s+/);
   criteria.keywords = words.filter(
-    (w) => w.length > 3 && !["altı", "tl", "₺", "veya"].includes(w)
+    (w) => w.length > 3 && !STOPWORDS.includes(w)
   );
 
   return criteria;
