@@ -61,10 +61,16 @@ export default function CameraScreen() {
       throw new Error("kayıtlı değil");
     } catch {
       // Gereksinim Senaryo 2: geçersiz / kayıtlı olmayan QR
+      // Not: scanned=true bırakılır ki kamera aynı QR'ı otomatik tekrar
+      // okumasın (sonsuz uyarı döngüsünü önler). Kullanıcı kontrollü olarak
+      // "Geri Dön" ya da alttaki "Tekrar Tara" butonunu kullanır.
       Alert.alert(
         "Geçersiz QR Kod",
-        "Bu QR kod sisteme kayıtlı bir restorana ait değil.",
-        [{ text: "Tekrar Tara", onPress: () => setScanned(false) }]
+        "Bu QR kod sisteme kayıtlı bir restorana ait değil. Geri dönebilir veya kamerayı farklı bir QR koda çevirip tekrar tarayabilirsiniz.",
+        [
+          { text: "Geri Dön", style: "cancel", onPress: () => router.back() },
+          { text: "Tamam", onPress: () => {} },
+        ]
       );
     } finally {
       setChecking(false);
