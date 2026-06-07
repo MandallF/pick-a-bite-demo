@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Markdown from "react-native-markdown-display";
 
 import { Message, MenuItem, Restaurant } from "../lib/chatTypes";
 import {
@@ -32,6 +33,19 @@ const QUICK_QUERIES = [
   "Kalorisiz salata önerileri", "300 TL altında ne var?",
   "Vegan seçenekler neler?", "Glutensiz yemekler",
 ];
+
+// AI mesajları için markdown stil tanımları (kalın, liste, başlık)
+const markdownStyles: any = {
+  body: { color: "#1a1a1a", fontSize: 14, lineHeight: 21, margin: 0 },
+  strong: { fontWeight: "700" },
+  paragraph: { marginTop: 0, marginBottom: 6 },
+  bullet_list: { marginTop: 2, marginBottom: 2 },
+  ordered_list: { marginTop: 2, marginBottom: 2 },
+  list_item: { marginVertical: 1 },
+  heading1: { fontSize: 16, fontWeight: "700", marginBottom: 4 },
+  heading2: { fontSize: 15, fontWeight: "700", marginBottom: 4 },
+  heading3: { fontSize: 14, fontWeight: "700", marginBottom: 4 },
+};
 
 // ─── ANA BİLEŞEN ─────────────────────────────
 export default function ChatbotScreen() {
@@ -154,7 +168,11 @@ export default function ChatbotScreen() {
       <View style={[styles.row, isUser ? styles.rowUser : styles.rowAI]}>
         {!isUser && <View style={styles.avatar}><Ionicons name="sparkles" size={14} color="white" /></View>}
         <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAI]}>
-          <Text style={[styles.msgText, isUser ? styles.textUser : styles.textAI]}>{item.text}</Text>
+          {isUser ? (
+            <Text style={[styles.msgText, styles.textUser]}>{item.text}</Text>
+          ) : (
+            <Markdown style={markdownStyles}>{item.text}</Markdown>
+          )}
           <Text style={[styles.timeText, isUser && { color: "rgba(255,255,255,0.6)" }]}>
             {item.timestamp.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
           </Text>
@@ -228,6 +246,14 @@ export default function ChatbotScreen() {
           </>}
         />
 
+        {/* Öneri geldiyse: restoranları haritada gör kısayolu */}
+        {messages.length > 1 && !isLoading && !isInitializing && (
+          <TouchableOpacity style={styles.mapBtn} onPress={() => router.push("/(tabs)")}>
+            <Ionicons name="map-outline" size={18} color="#319795" />
+            <Text style={styles.mapBtnText}>Restoranları haritada gör</Text>
+          </TouchableOpacity>
+        )}
+
         {/* INPUT — her zaman en altta, navigasyon çubuğunun üstünde */}
         <View style={styles.inputWrap}>
           <TextInput
@@ -290,6 +316,9 @@ const styles = StyleSheet.create({
   quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   quickBtn: { backgroundColor: "white", borderWidth: 1.5, borderColor: "#319795", borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
   quickText: { fontSize: 12, color: "#319795", fontWeight: "600" },
+
+  mapBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#e6fffa", paddingVertical: 10, marginHorizontal: 12, marginBottom: 4, borderRadius: 12 },
+  mapBtnText: { color: "#319795", fontWeight: "600", fontSize: 13 },
 
   inputWrap: {
     flexDirection: "row",
