@@ -70,6 +70,12 @@ export default function HomeScreen() {
   const uygunMu = (rest: Restaurant): boolean =>
     userPrefs.length > 0 && rest.menuler.some((item) => urunUygunMu(item, userPrefs));
 
+  // Harita pin rengi: tercih yok → mavi, uygun → yeşil, uygun değil → kırmızı
+  const pinRengi = (rest: Restaurant): string => {
+    if (userPrefs.length === 0) return "#2b6cb0"; // mavi
+    return uygunMu(rest) ? "#2f855a" : "#e53e3e"; // yeşil / kırmızı
+  };
+
   const filtered = searchText
     ? restaurants.filter((r) => r.ad.toLowerCase().includes(searchText.toLowerCase()))
     : restaurants;
@@ -127,11 +133,13 @@ export default function HomeScreen() {
                 coordinate={{ latitude: r.enlem, longitude: r.boylam }}
                 title={r.ad}
                 description={
-                  uygunMu(r)
+                  userPrefs.length === 0
+                    ? r.adres || "Menü için tıkla"
+                    : uygunMu(r)
                     ? "✓ Tercihlerine uygun · Menü için tıkla"
-                    : r.adres || "Menü için tıkla"
+                    : "✗ Tercihlerine uygun değil · Menü için tıkla"
                 }
-                pinColor={uygunMu(r) ? "#38a169" : "#319795"}
+                pinColor={pinRengi(r)}
                 onCalloutPress={() => handleRestaurantPress(r)}
                 onPress={() => handleRestaurantPress(r)}
               />
@@ -166,12 +174,18 @@ export default function HomeScreen() {
                     {item.adres}
                   </Text>
                 </View>
-                {uygunMu(item) && (
-                  <View style={styles.uygunBadge}>
-                    <Ionicons name="checkmark-circle" size={13} color="#38a169" />
-                    <Text style={styles.uygunText}>Tercihlerine uygun</Text>
-                  </View>
-                )}
+                {userPrefs.length > 0 &&
+                  (uygunMu(item) ? (
+                    <View style={styles.uygunBadge}>
+                      <Ionicons name="checkmark-circle" size={13} color="#2f855a" />
+                      <Text style={styles.uygunText}>Tercihlerine uygun</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.uygunsuzBadge}>
+                      <Ionicons name="close-circle" size={13} color="#e53e3e" />
+                      <Text style={styles.uygunsuzText}>Tercihlerine uygun değil</Text>
+                    </View>
+                  ))}
               </View>
               <Ionicons name="chevron-forward" size={20} color="#ccc" />
             </TouchableOpacity>
@@ -413,7 +427,19 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
   },
-  uygunText: { color: "#38a169", fontSize: 11, fontWeight: "600" },
+  uygunText: { color: "#2f855a", fontSize: 11, fontWeight: "600" },
+  uygunsuzBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 6,
+    backgroundColor: "#fdecec",
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  uygunsuzText: { color: "#e53e3e", fontSize: 11, fontWeight: "600" },
   emptyText: { textAlign: "center", color: "#999", marginTop: 40, fontSize: 14 },
 
   chatbotPanel: {

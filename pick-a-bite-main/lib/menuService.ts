@@ -213,10 +213,11 @@ export const extractSearchCriteria = (query: string): SearchCriteria => {
 // Beslenme tercihiyle UYUMSUZ ürünleri tespit eden anahtar kelimeler.
 // Ürün adı/açıklamasında bunlardan biri geçiyorsa o tercih için elenir.
 const PREF_HARIC: Record<string, string[]> = {
-  vegan: ["tavuk", "et ", "kebap", "köfte", "balık", "şiş", "adana", "urfa", "iskender", "döner", "sucuk", "kıyma", "peynir", "süt", "yumurta", "tereyağ", "yoğurt", "ayran", "jambon", "salam", "sosis"],
+  // Vegan: et/tavuk/balık + tüm süt ve süt tatlıları + yumurta/bal
+  vegan: ["tavuk", "et ", "kebap", "köfte", "balık", "şiş", "adana", "urfa", "iskender", "döner", "sucuk", "kıyma", "jambon", "salam", "sosis", "peynir", "süt", "sütlaç", "sütlü", "muhallebi", "kazandibi", "keşkül", "trileçe", "supangle", "dondurma", "puding", "krema", "künefe", "baklava", "yumurta", "tereyağ", "yoğurt", "ayran", "bal"],
   vegetarian: ["tavuk", "et ", "kebap", "köfte", "balık", "şiş", "adana", "urfa", "iskender", "döner", "sucuk", "kıyma", "jambon", "salam", "sosis"],
   gluten_free: ["baklava", "künefe", "ekmek", "makarna", "pizza", "börek", "buğday", "mantı", "lahmacun", "pide"],
-  lactose_intolerant: ["süt", "sütlaç", "muhallebi", "dondurma", "kazandibi", "keşkül", "trileçe", "supangle", "puding", "ayran", "peynir", "yoğurt", "krema", "tereyağ"],
+  lactose_intolerant: ["süt", "sütlaç", "sütlü", "muhallebi", "dondurma", "kazandibi", "keşkül", "trileçe", "supangle", "puding", "ayran", "peynir", "yoğurt", "krema", "tereyağ", "künefe"],
   peanut_allergy: ["fıstık", "fıstıklı"],
 };
 
