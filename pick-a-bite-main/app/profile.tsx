@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -93,6 +94,8 @@ export default function ProfileScreen() {
   const [preferences, setPreferences] =
     useState<DietaryPreference[]>(INITIAL_PREFERENCES);
   const [isEditing, setIsEditing] = useState(false);
+  // Kaydedilmemiş değişiklik var mı? (Kaydet butonunu vurgulamak için)
+  const [hasChanges, setHasChanges] = useState(false);
 
   // Kullanıcı bilgileri (Gerçek uygulamada auth context'ten gelir)
   const user = {
@@ -122,19 +125,35 @@ export default function ProfileScreen() {
     loadPreferences();
   }, []);
 
-  // Tercih toggle fonksiyonu — değişikliği anında AsyncStorage'a kaydet
-  const togglePreference = async (id: string) => {
-    const updated = preferences.map((pref) =>
-      pref.id === id ? { ...pref, enabled: !pref.enabled } : pref
+  // Tercih toggle fonksiyonu — yalnızca ekrandaki seçimi değiştirir.
+  // Kalıcı kayıt, alttaki "Tercihleri Kaydet" butonuna basılınca yapılır.
+  const togglePreference = (id: string) => {
+    setPreferences((prev) =>
+      prev.map((pref) =>
+        pref.id === id ? { ...pref, enabled: !pref.enabled } : pref
+      )
     );
-    setPreferences(updated);
+    setHasChanges(true);
+  };
+
+  // Kaydet — o anki seçili tercihleri kalıcı olarak yazar ve haritaya döner
+  const handleSave = async () => {
     try {
-      const activeIds = updated
+      const activeIds = preferences
         .filter((p) => p.enabled)
         .map((p) => p.id);
       await AsyncStorage.setItem("userPreferences", JSON.stringify(activeIds));
+      setHasChanges(false);
+      Alert.alert(
+        "Tercihler Kaydedildi",
+        activeIds.length > 0
+          ? "Beslenme tercihleriniz güncellendi. Harita ve öneriler bu tercihlere göre filtrelenecek."
+          : "Tüm tercihler kapatıldı. Harita tüm restoranları nötr (mavi) gösterecek.",
+        [{ text: "Tamam", onPress: () => router.back() }]
+      );
     } catch (e) {
       console.log("Tercihler kaydedilemedi:", e);
+      Alert.alert("Hata", "Tercihler kaydedilemedi. Lütfen tekrar deneyin.");
     }
   };
 
@@ -255,6 +274,18 @@ export default function ProfileScreen() {
             restoran ile doğrulama yapmanızı öneririz.
           </Text>
         </View>
+
+        {/* ── KAYDET BUTONU ── */}
+        <TouchableOpacity
+          style={[styles.saveBtn, !hasChanges && styles.saveBtnIdle]}
+          onPress={handleSave}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="save-outline" size={20} color="white" />
+          <Text style={styles.saveText}>
+            {hasChanges ? "Tercihleri Kaydet" : "Tercihler Kayıtlı"}
+          </Text>
+        </TouchableOpacity>
 
         {/* ── ÇIKIŞ BUTONU ── */}
         <TouchableOpacity style={styles.logoutBtn}>
@@ -484,6 +515,34 @@ const styles = StyleSheet.create({
   },
 
   /* Çıkış Butonu */
+  /* Kaydet butonu */
+  saveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    backgroundColor: "#319795",
+    borderRadius: 14,
+    padding: 15,
+    shadowColor: "#319795",
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  saveBtnIdle: {
+    backgroundColor: "#a0aec0",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  saveText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "white",
+  },
+
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",
