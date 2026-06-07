@@ -18,6 +18,8 @@ export interface MenuItem {
   kategori: string;
   aciklama?: string;
   etiketler?: string[];
+  /** Filtreleme sonrası: ürünün bulunduğu restoranın mesafesi (km). */
+  restoranMesafe?: number;
 }
 
 /** Backend'den çekilen restoran + menüsü. */
@@ -25,6 +27,10 @@ export interface Restaurant {
   ad: string;
   adres: string;
   menuler: MenuItem[];
+  enlem?: number;
+  boylam?: number;
+  /** Referans konuma uzaklık (km), istemcide hesaplanır. */
+  mesafe?: number;
 }
 
 /** Kullanıcı sorgusundan çıkarılan arama kriterleri. */

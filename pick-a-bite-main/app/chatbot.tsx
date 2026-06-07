@@ -87,7 +87,8 @@ export default function ChatbotScreen() {
           // Menü yapısını görüntü için oluştur
           let menuText = "";
           for (const rest of restaurants.slice(0, 5)) {
-            menuText += `\n${rest.ad}:\n`;
+            const mesafeStr = rest.mesafe != null ? ` (${rest.mesafe} km)` : "";
+            menuText += `\n${rest.ad}${mesafeStr}:\n`;
             const grouped: Record<string, MenuItem[]> = {};
             for (const item of rest.menuler.slice(0, 20)) {
               if (!grouped[item.kategori]) grouped[item.kategori] = [];

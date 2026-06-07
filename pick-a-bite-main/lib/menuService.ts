@@ -5,6 +5,29 @@
 import { apiFetch, BACKEND_URL } from "./api";
 import { MenuItem, Restaurant, SearchCriteria } from "./chatTypes";
 
+// Demo referans konumu: Bursa merkez. Gerçek üründe kullanıcının GPS
+// konumu (expo-location) ile değiştirilir. Demo'da öngörülebilir,
+// gerçekçi mesafeler (0.3–1.5 km) için sabit tutulur.
+export const DEMO_KONUM = { enlem: 40.1885, boylam: 29.061 };
+
+/** İki koordinat arası kuş uçuşu mesafe (km) — Haversine formülü. */
+export const haversineKm = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number => {
+  const R = 6371; // Dünya yarıçapı (km)
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
 /** QR URL'sinden okunabilir restoran adı çıkarır. */
 export const extractName = (qr: string): string => {
   try {
@@ -91,10 +114,24 @@ export const fetchAllRestaurantsFromBackend = async (): Promise<Restaurant[]> =>
     const restaurantsWithMenu = await Promise.all(
       restoranList.map(async (r: any) => {
         const baseName = r.restoranAdi || r.ad || "Bilinmeyen Restoran";
+        // Referans konuma mesafe (km, 1 ondalık)
+        const mesafe =
+          typeof r.enlem === "number" && typeof r.boylam === "number"
+            ? Math.round(
+                haversineKm(DEMO_KONUM.enlem, DEMO_KONUM.boylam, r.enlem, r.boylam) * 10
+              ) / 10
+            : undefined;
+        const temel = {
+          ad: baseName,
+          adres: r.adres || "",
+          enlem: r.enlem,
+          boylam: r.boylam,
+          mesafe,
+        };
         try {
           const menuRes = await apiFetch(`${BACKEND_URL}/restoranlar/${r.id}/menu`, {}, 6000);
           if (!menuRes.ok) {
-            return { ad: baseName, adres: r.adres || "", menuler: [] };
+            return { ...temel, menuler: [] };
           }
           const menuData = await menuRes.json();
           const kategoriler = Array.isArray(menuData.kategoriler) ? menuData.kategoriler : [];
@@ -111,10 +148,10 @@ export const fetchAllRestaurantsFromBackend = async (): Promise<Restaurant[]> =>
               : []
           );
 
-          return { ad: baseName, adres: r.adres || "", menuler };
+          return { ...temel, menuler };
         } catch (err) {
           console.warn(`Menü çekilemedi (${baseName}):`, err);
-          return { ad: baseName, adres: r.adres || "", menuler: [] };
+          return { ...temel, menuler: [] };
         }
       })
     );
@@ -204,10 +241,15 @@ export const filterRestaurants = (
       }
 
       if (matches) {
-        results.push({ ...item, kategori: restaurant.ad });
+        results.push({
+          ...item,
+          kategori: restaurant.ad,
+          restoranMesafe: restaurant.mesafe,
+        });
       }
     }
   }
 
+  // En ucuz öne: fiyata göre artan sırala, ilk 10 ürün
   return results.sort((a, b) => a.fiyat - b.fiyat).slice(0, 10);
 };

@@ -52,15 +52,25 @@ KURALLAR:
 EN ÖNEMLİ KURAL — RESTORANA GÖRE GRUPLA:
 Kullanıcı hangi restorana gideceğini bilmek ister. Bu yüzden önerileri
 DÜZ LİSTE olarak verme. Her zaman restorana göre grupla: önce restoran
-adını başlık yap, altına o restorandaki uygun ürünleri ve fiyatlarını yaz.
+adını + mesafesini başlık yap, altına o restorandaki uygun ürünleri ve
+fiyatlarını yaz.
+
+MESAFE VE FİYAT:
+- Restoran başlığında mesafeyi göster (sistem "X km" verir, onu kullan).
+- En ucuz seçeneği bir cümleyle EN BAŞTA öne çıkar (💰 işareti ile).
+- Restoranları en uygun/en yakın olandan başlayarak sırala (sistem zaten
+  fiyat sırasına göre veriyor, bu sırayı koru).
 
 ÖRNEK ÇIKTI FORMATI:
-📍 Tatlıcı Safa
+💰 En uygun seçenek: Meyve Tabağı — ₺60 (Lezzet Durağı, 0.5 km)
+
+📍 Lezzet Durağı (0.5 km)
+   • Meyve Tabağı — ₺60
+   • Dondurma — ₺75
+
+📍 Tatlıcı Safa (0.4 km)
    • Fırın Sütlaç — ₺80
    • Kazandibi — ₺90
-
-📍 Lezzet Kebapçısı
-   • Tavuk Şiş — ₺200
 
 Her ürünün hangi restoranda olduğu net görünmeli. Aynı ürün birden çok
 restoranda varsa hepsini ayrı ayrı göster ki kullanıcı en uygun yeri seçsin.`;
@@ -86,7 +96,9 @@ restoranda varsa hepsini ayrı ayrı göster ki kullanıcı en uygun yeri seçsi
         grouped[item.kategori].push(item);
       }
       for (const [rest, items] of Object.entries(grouped)) {
-        menuInfo += `${rest}:\n`;
+        const mesafe = items[0]?.restoranMesafe;
+        const mesafeStr = mesafe != null ? ` (${mesafe} km)` : "";
+        menuInfo += `${rest}${mesafeStr}:\n`;
         menuInfo += items.map((i) => `• ${i.urunAdi}: ₺${i.fiyat}`).join("\n") + "\n";
       }
     } else if (menuContext && menuContext.length > 0) {
