@@ -2,7 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { apiJSON } from "../lib/api";
 
 export default function CameraScreen() {
   const router = useRouter();
@@ -11,6 +12,8 @@ export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   // QR kodun taranıp taranmadığını kontrol eden durum
   const [scanned, setScanned] = useState(false);
+  // QR doğrulanırken yükleme göstergesi
+  const [checking, setChecking] = useState(false);
 
   // İzin kontrolü
   if (!permission) {
@@ -31,19 +34,41 @@ export default function CameraScreen() {
   }
 
   // QR okuma mantığı
-  const handleBarcodeScanned = ({ data }: any) => {
+  const handleBarcodeScanned = async ({ data }: any) => {
     // Eğer daha önce tarama yapıldıysa işlemi durdur
     if (scanned) return;
 
     setScanned(true);
     console.log("QR DATA:", data);
 
-    // QR'dan gelen veriyi chatbot ekranına parametre olarak gönder
-    // Chatbot bu veriyi kullanarak restoranın menüsünü analiz edecek
-    router.replace({
-      pathname: "/chatbot",
-      params: { qrData: data },
-    });
+    // 1) QR bir web URL'i ise: restoran web menüsünü chatbot analiz etsin
+    if (/^https?:\/\//i.test(data)) {
+      router.replace({ pathname: "/chatbot", params: { qrData: data } });
+      return;
+    }
+
+    // 2) Aksi halde backend QR kodu varsay → sistemde kayıtlı mı doğrula
+    setChecking(true);
+    try {
+      const restoran: any = await apiJSON(`/restoranlar/qr/${encodeURIComponent(data)}`);
+      if (restoran && restoran.id) {
+        router.replace({
+          pathname: "/restaurant/[id]",
+          params: { id: String(restoran.id), ad: restoran.restoranAdi },
+        });
+        return;
+      }
+      throw new Error("kayıtlı değil");
+    } catch {
+      // Gereksinim Senaryo 2: geçersiz / kayıtlı olmayan QR
+      Alert.alert(
+        "Geçersiz QR Kod",
+        "Bu QR kod sisteme kayıtlı bir restorana ait değil.",
+        [{ text: "Tekrar Tara", onPress: () => setScanned(false) }]
+      );
+    } finally {
+      setChecking(false);
+    }
   };
 
   return (
@@ -66,10 +91,17 @@ export default function CameraScreen() {
 
       {/* Bilgi Çubuğu*/}
       <View style={styles.bottomInfo}>
-        <Text style={styles.text}>QR kodu çerçeve içine getir</Text>
+        {checking ? (
+          <View style={styles.checkingRow}>
+            <ActivityIndicator color="white" />
+            <Text style={styles.text}>QR kod doğrulanıyor...</Text>
+          </View>
+        ) : (
+          <Text style={styles.text}>QR kodu çerçeve içine getir</Text>
+        )}
 
-        {/* Tarama başarılıysa tekrar taramak için buton göster */}
-        {scanned && (
+        {/* Tarama yapıldıysa (ve doğrulama bitmişse) tekrar tara butonu */}
+        {scanned && !checking && (
           <TouchableOpacity
             onPress={() => setScanned(false)}
             style={styles.resetBtn}
@@ -112,6 +144,12 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     marginBottom: 10,
+  },
+
+  checkingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
 
   resetBtn: {
