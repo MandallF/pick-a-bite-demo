@@ -27,7 +27,9 @@ export const askGroq = async (
   restaurantName?: string,
   menuContext?: string,
   userPrefs?: string[],
-  filteredResults?: MenuItem[]
+  filteredResults?: MenuItem[],
+  /** Veri var ama kriterlere uyan ürün bulunamadıysa true. */
+  noMatch?: boolean
 ): Promise<string> => {
   const prefText = userPrefs?.length
     ? userPrefs.map((id) => PREF_LABELS[id] || id).join(", ")
@@ -46,8 +48,17 @@ KURALLAR:
 2. Fiyat belirtilmişse o fiyat sınırını aşma
 3. Sadece menüde olan ürünleri göster, asla uydurma
 4. Türkçe, kısa, net cevap ver
-5. Ürün yoksa dürüstçe söyle
-6. Menü bilgisi verildiyse YALNIZCA o menüdeki ürünleri öner
+5. Menü bilgisi verildiyse YALNIZCA o menüdeki ürünleri öner
+
+KALORİ VE ALERJEN:
+- Sistem ürün yanında kalori (kcal) ve alerjen bilgisi verebilir.
+- "Düşük kalori / hafif / diyet" sorgularında düşük kalorili ürünleri öne çıkar
+  ve kalori değerlerini belirt.
+- Kullanıcının alerjisi/tercihi varsa, alerjen içeren ürünlerde mutlaka uyar.
+
+UYGUN ÜRÜN BULUNAMAZSA:
+- Sistem "uygun ürün bulunamadı" derse uydurma. Durumu nazikçe açıkla ve
+  kullanıcıya kriterlerini gevşetmesini öner (bütçe, kategori veya tercih).
 
 EN ÖNEMLİ KURAL — RESTORANA GÖRE GRUPLA:
 Kullanıcı hangi restorana gideceğini bilmek ister. Bu yüzden önerileri
@@ -99,8 +110,20 @@ restoranda varsa hepsini ayrı ayrı göster ki kullanıcı en uygun yeri seçsi
         const mesafe = items[0]?.restoranMesafe;
         const mesafeStr = mesafe != null ? ` (${mesafe} km)` : "";
         menuInfo += `${rest}${mesafeStr}:\n`;
-        menuInfo += items.map((i) => `• ${i.urunAdi}: ₺${i.fiyat}`).join("\n") + "\n";
+        menuInfo += items
+          .map((i) => {
+            const kal = i.tahminiKalori != null ? `, ${i.tahminiKalori} kcal` : "";
+            const alerj =
+              i.etiketler && i.etiketler.length > 0
+                ? ` [alerjen: ${i.etiketler.join(", ")}]`
+                : "";
+            return `• ${i.urunAdi}: ₺${i.fiyat}${kal}${alerj}`;
+          })
+          .join("\n") + "\n";
       }
+    } else if (noMatch) {
+      // Veri var ama kriterlere uyan ürün yok → kriter gevşetme önerisi
+      menuInfo = `\n\n[SİSTEM: Belirtilen kriterlere TAM uyan ürün bulunamadı. Kullanıcıya bunu nazikçe bildir ve kriterlerini gevşetmesini öner (ör. bütçeyi biraz artırma, farklı bir kategori deneme, beslenme tercihi filtresini gözden geçirme). Menüde yakın alternatifler varsa kibarca sun.]`;
     } else if (menuContext && menuContext.length > 0) {
       // QR modunda: menü zaten system prompt'ta var, sadece hatırlatma ekle
       menuInfo = `\n\n[Lütfen yalnızca yukarıdaki menüdeki ürünleri kullanarak cevap ver.]`;

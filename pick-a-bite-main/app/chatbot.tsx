@@ -133,10 +133,12 @@ export default function ChatbotScreen() {
     // Sorguyu analiz et ve filtrele
     const criteria = extractSearchCriteria(trimmed);
     const filteredResults = allRestaurants.length > 0
-      ? filterRestaurants(allRestaurants, criteria)
+      ? filterRestaurants(allRestaurants, criteria, userPrefs)
       : [];
+    // Veri var ama hiçbir ürün eşleşmediyse: boş sonuç durumu
+    const noMatch = allRestaurants.length > 0 && filteredResults.length === 0;
 
-    askGroq(nextMessages, restaurantName, menuContext, userPrefs, filteredResults)
+    askGroq(nextMessages, restaurantName, menuContext, userPrefs, filteredResults, noMatch)
       .then(aiText => {
         setMessages(m => [...m, { id: `a-${Date.now()}`, role: "assistant", text: aiText, timestamp: new Date() }]);
       })

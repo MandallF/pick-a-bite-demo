@@ -144,6 +144,8 @@ export const fetchAllRestaurantsFromBackend = async (): Promise<Restaurant[]> =>
                   kategori: k.kategoriAdi || "",
                   aciklama: u.aciklama || "",
                   etiketler: Array.isArray(u.alerjenler) ? u.alerjenler : [],
+                  tahminiKalori:
+                    typeof u.tahminiKalori === "number" ? u.tahminiKalori : undefined,
                 }))
               : []
           );
@@ -207,16 +209,57 @@ export const extractSearchCriteria = (query: string): SearchCriteria => {
   return criteria;
 };
 
-/** Restoran listesini kriterlere göre filtreler; fiyata göre sıralı ilk 10 ürünü döner. */
+// Beslenme tercihiyle UYUMSUZ ürünleri tespit eden anahtar kelimeler.
+// Ürün adı/açıklamasında bunlardan biri geçiyorsa o tercih için elenir.
+const PREF_HARIC: Record<string, string[]> = {
+  vegan: ["tavuk", "et ", "kebap", "köfte", "balık", "şiş", "adana", "urfa", "iskender", "döner", "sucuk", "kıyma", "peynir", "süt", "yumurta", "tereyağ", "yoğurt", "ayran", "jambon", "salam", "sosis"],
+  vegetarian: ["tavuk", "et ", "kebap", "köfte", "balık", "şiş", "adana", "urfa", "iskender", "döner", "sucuk", "kıyma", "jambon", "salam", "sosis"],
+  gluten_free: ["baklava", "künefe", "ekmek", "makarna", "pizza", "börek", "buğday", "mantı", "lahmacun", "pide"],
+  lactose_intolerant: ["süt", "sütlaç", "muhallebi", "dondurma", "kazandibi", "keşkül", "trileçe", "supangle", "puding", "ayran", "peynir", "yoğurt", "krema", "tereyağ"],
+  peanut_allergy: ["fıstık", "fıstıklı"],
+};
+
+// İsimde bu kelime geçiyorsa tercih için KESİN uygun sayılır (eleme atlanır).
+const PREF_DAHIL: Record<string, string[]> = {
+  vegan: ["vegan"],
+  vegetarian: ["vegan", "vejetaryen", "vejeteryan"],
+  gluten_free: ["glutensiz", "glütensiz"],
+};
+
+/** Bir ürün, kullanıcının beslenme tercihlerine uygun mu? */
+export const urunUygunMu = (item: MenuItem, userPrefs?: string[]): boolean => {
+  if (!userPrefs || userPrefs.length === 0) return true;
+  const metin = `${item.urunAdi} ${item.aciklama || ""}`.toLowerCase();
+  const alerjenMetin = (item.etiketler || []).join(" ").toLowerCase();
+
+  for (const pref of userPrefs) {
+    const dahil = PREF_DAHIL[pref];
+    if (dahil && dahil.some((k) => metin.includes(k))) continue; // kesin uygun
+    const haric = PREF_HARIC[pref];
+    if (haric && haric.some((k) => metin.includes(k) || alerjenMetin.includes(k))) {
+      return false; // tercihle çelişiyor
+    }
+  }
+  return true;
+};
+
+/**
+ * Restoran listesini kriterlere ve kullanıcı tercihlerine göre filtreler;
+ * fiyata göre sıralı ilk 10 ürünü döner.
+ */
 export const filterRestaurants = (
   restaurants: Restaurant[],
-  criteria: SearchCriteria
+  criteria: SearchCriteria,
+  userPrefs?: string[]
 ): MenuItem[] => {
   const results: MenuItem[] = [];
 
   for (const restaurant of restaurants) {
     for (const item of restaurant.menuler) {
       let matches = true;
+
+      // Profil tercih filtresi (sıkı eleme: vegan/glutensiz/alerjen vb.)
+      if (!urunUygunMu(item, userPrefs)) matches = false;
 
       // Fiyat filtresi
       if (criteria.maxPrice && item.fiyat > criteria.maxPrice) {

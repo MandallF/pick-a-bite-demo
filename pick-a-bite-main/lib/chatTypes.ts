@@ -17,7 +17,9 @@ export interface MenuItem {
   fiyat: number;
   kategori: string;
   aciklama?: string;
+  /** Ürünün alerjenleri (backend'den gelen alerjenler dizisi). */
   etiketler?: string[];
+  tahminiKalori?: number;
   /** Filtreleme sonrası: ürünün bulunduğu restoranın mesafesi (km). */
   restoranMesafe?: number;
 }
