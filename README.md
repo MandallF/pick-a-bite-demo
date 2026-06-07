@@ -1,74 +1,247 @@
-# Pick A Bite — Demo Build
+# 🍽️ Pick A Bite
 
-> Sunum demosu için hazırlanmış kişisel monorepo. **BLM0324 — Yazılım Mühendisliği** dersi proje ödevi.
+> Yapay zekâ destekli, konum tabanlı **menü öneri sistemi** — Bursa Teknik Üniversitesi BLM0324 Yazılım Mühendisliği proje ödevi.
 
-Yapay zekâ destekli, konum tabanlı bir **menü öneri sistemi**. Kullanıcılar QR kod ile restoran menülerine erişir, bütçe / alerjen / beslenme tercihlerine göre AI chatbot'tan öneri alır.
+Pick A Bite, restoranda **"ne yiyeceğim?"** sorusunu çözen bir karar destek uygulamasıdır. Kullanıcılar QR kod ile menülere erişir, bütçe/alerjen/beslenme tercihlerini tanımlar ve **Groq (Llama 3.3 70B)** destekli sohbet asistanından doğal dilde öneri alır.
 
-## Yapı
+```
+"250 TL altında glütensiz bir öğün öner"
+        ↓
+  Yapay zekâ menüyü tarar → en uygun seçenekleri sunar
+```
+
+---
+
+## 📑 İçindekiler
+
+- [Özellikler](#-özellikler)
+- [Teknoloji Yığını](#-teknoloji-yığını)
+- [Proje Yapısı](#-proje-yapısı)
+- [Hızlı Başlangıç (Tek Tık)](#-hızlı-başlangıç-tek-tık)
+- [Manuel Kurulum](#-manuel-kurulum)
+- [Demo Akışı](#-demo-akışı)
+- [API Uçları](#-api-uçları)
+- [Sorun Giderme](#-sorun-giderme)
+- [Belgeler](#-belgeler)
+
+---
+
+## ✨ Özellikler
+
+| # | Özellik | Açıklama |
+|---|---------|----------|
+| 1 | **QR ile Menü Erişimi** | Masadaki QR kodu kameraya tut, menü anında açılır |
+| 2 | **AI Chatbot Öneri** | Doğal dilde sorgu (Groq Llama 3.3 70B) → menüden filtreli öneri |
+| 3 | **Konum Bazlı Keşif** | Harita üzerinde yakın restoranlar pin olarak |
+| 4 | **Menü Görüntüleme** | Kategorize menü: ad, açıklama, fiyat, kalori, alerjen rozetleri |
+| 5 | **Kişisel Tercihler** | Vegan / glütensiz / laktoz / alerjen / bütçe — AsyncStorage'da kalıcı |
+
+---
+
+## 🛠️ Teknoloji Yığını
+
+| Katman | Teknoloji |
+|--------|-----------|
+| **Mobil** | React Native 0.81, Expo SDK 54, TypeScript, Expo Router |
+| **Harita** | react-native-maps |
+| **Backend** | Spring Boot 3.5.14, Java 17, Spring Data JPA, Hibernate |
+| **Veritabanı** | H2 (demo, PostgreSQL uyumlu mod) / PostgreSQL (production) |
+| **Auth** | Spring Security + JWT (jjwt 0.12.6) + BCrypt — *demo'da devre dışı* |
+| **Yapay Zekâ** | Groq API (llama-3.3-70b-versatile) + Gemini (fallback) |
+| **Veri Toplama** | Python (pandas, requests) + Google Places API |
+
+---
+
+## 📁 Proje Yapısı
 
 ```
 pick-a-bite-demo/
-├── pick-a-bite-backend/   # Spring Boot 3.5 (Java 17) + PostgreSQL + JWT
-├── pick-a-bite-data/      # Python veri toplama (Google Places API)
-└── pick-a-bite-main/      # React Native + Expo (mobil + chatbot)
+├── demo-baslat.bat            ← Tek tıkla demo başlatıcı (Windows)
+├── pick-a-bite-backend/       Spring Boot REST API
+│   ├── src/main/java/com/aliyilmaz/
+│   │   ├── controller/        AppController, AuthController, KullaniciController, MenuController
+│   │   ├── entities/          Kullanici, Restoran, Kategori, Urun
+│   │   ├── services/          İş mantığı katmanı
+│   │   ├── repository/        Spring Data JPA repository'leri
+│   │   ├── security/          JWT filtre + servisleri (demo'da kapalı)
+│   │   └── dto/               Veri transfer nesneleri
+│   └── src/main/resources/application.properties
+│
+├── pick-a-bite-data/          Python veri toplama
+│   ├── main.py                Google Places API ile Bursa restoranları
+│   ├── menutojson.py          CSV → JSON dönüştürücü
+│   └── *.csv, menu.json       Toplanan veri
+│
+└── pick-a-bite-main/          React Native + Expo mobil uygulama
+    ├── app/
+    │   ├── (tabs)/index.tsx   Harita ana ekranı (backend'den restoranlar)
+    │   ├── restaurant/[id].tsx Menü detay ekranı
+    │   ├── chatbot.tsx        AI sohbet ekranı (Groq)
+    │   ├── camera.tsx         QR tarayıcı
+    │   └── profile.tsx        Tercih yönetimi
+    ├── populate.js            Backend'e örnek veri yükleyici
+    ├── .env                   API anahtarları (git'e gitmez)
+    └── docs/                  Proje belgeleri (PDF)
 ```
 
-## Hızlı Başlangıç (Sadece Frontend — Demo İçin Yeterli)
+---
+
+## 🚀 Hızlı Başlangıç (Tek Tık)
+
+> **Önkoşul:** JDK 17, Node.js, cloudflared kurulu olmalı (bkz. [Manuel Kurulum](#-manuel-kurulum)).
+> `.env` dosyasında Groq API anahtarı tanımlı olmalı.
+
+**Windows'ta** repo kökündeki dosyaya çift tıkla:
+
+```
+demo-baslat.bat
+```
+
+Script otomatik olarak:
+1. Eski servisleri kapatır (port 8080/8081)
+2. **Backend**'i başlatır (Spring Boot, port 8080)
+3. **Cloudflare Tunnel** açar (internetten erişim için)
+4. **`.env`**'i yeni tunnel URL'i ile günceller
+5. **Expo**'yu başlatır + **`expo-qr.png`** QR kodunu otomatik açar
+
+Telefonda **Expo Go** uygulamasıyla QR'ı tara → demo telefonda açılır.
+
+---
+
+## 🔧 Manuel Kurulum
+
+### Önkoşullar
+
+```bash
+# JDK 17
+winget install Microsoft.OpenJDK.17
+
+# Node.js (yoksa)
+winget install OpenJS.NodeJS
+
+# Cloudflare Tunnel (telefondan backend erişimi için)
+winget install Cloudflare.cloudflared
+```
+
+### 1. API Anahtarı
+
+`pick-a-bite-main/.env` dosyasını oluştur:
+
+```env
+EXPO_PUBLIC_GROQ_API_KEY=gsk_xxxxxxxxxxxx
+GROQ_API_KEY=gsk_xxxxxxxxxxxx
+EXPO_PUBLIC_GEMINI_API_KEY=xxxxxxxxxxxx   # opsiyonel
+EXPO_PUBLIC_BACKEND_URL=http://localhost:8080/pick-a-bite
+```
+
+> Groq anahtarı ücretsiz: https://console.groq.com/keys
+
+### 2. Backend
+
+```bash
+cd pick-a-bite-backend
+./mvnw spring-boot:run
+# → http://localhost:8080  (ilk açılış ~2-3 sn)
+```
+
+Demo, **H2 dosya tabanlı** veritabanı kullanır (kurulum gerektirmez). Veri `pick-a-bite-backend/data/` altında kalıcıdır. Production için `application.properties` içinde PostgreSQL'e geçilebilir.
+
+### 3. Örnek Veriyi Yükle
+
+Backend ilk kez çalışıyorsa veritabanı boştur. Örnek 4 restoran + 20 ürünü yükle:
+
+```bash
+cd pick-a-bite-main
+node populate.js
+```
+
+### 4. Frontend (Mobil)
 
 ```bash
 cd pick-a-bite-main
 npm install
-cp .env.example .env
-# .env içine Groq API key'i yaz
-npx expo start
+npx expo start --tunnel
 ```
 
-Expo Go ile QR'ı oku → telefonunda çalışır. Veya `w` → web tarayıcıda.
+Telefonda **Expo Go** ile QR'ı tara.
 
-## Tam Stack (Backend Dahil)
+> **Not:** `react-native-maps` web'i desteklemez — uygulama **yalnızca telefonda** (Android/iOS) çalışır. `localhost:8081`'i tarayıcıda açmak harita hatası verir, bu normaldir.
 
-### Backend (Spring Boot)
+### Telefon ↔ Backend Bağlantısı
+
+Telefon, PC'deki backend'e iki şekilde ulaşabilir:
+
+- **Aynı WiFi:** `.env`'de `EXPO_PUBLIC_BACKEND_URL=http://<PC-LAN-IP>:8080/pick-a-bite`
+- **Cloudflare Tunnel (önerilen):** `cloudflared tunnel --url http://localhost:8080` → çıkan URL'i `.env`'e yaz
+
+`demo-baslat.bat` ikinci yöntemi otomatik yapar.
+
+---
+
+## 🎬 Demo Akışı
+
+1. **Harita** — Açılışta Bursa'daki 4 restoran pin olarak görünür
+2. **Restoran** — Pin'e tıkla → menü ekranı (kategoriler, fiyatlar, kalori, alerjen)
+3. **QR Tara** — Alt buton → kamera → masadaki QR → ilgili menü
+4. **Chatbot** — "Bugün canınız ne çekiyor?" → örn. *"100 TL altı tavuklu yemek öner"*
+5. **Profil** — Vegan/glütensiz/bütçe tercihleri (her sorguda otomatik kullanılır)
+
+**Örnek veri** (`populate.js`):
+- 🍰 Tatlıcı Safa · 🥗 Lezzet Durağı · 🌿 Yeşil Ev · 🍢 Lezzet Kebapçısı
+
+---
+
+## 🔌 API Uçları
+
+Tüm uçlar `/pick-a-bite` ön ekiyle başlar. (Demo'da JWT kapalı, token gerekmez.)
+
+| Metod | Uç | Açıklama |
+|-------|-----|----------|
+| `GET` | `/restoranlar` | Tüm restoranlar |
+| `GET` | `/restoranlar/{id}` | Restoran detayı |
+| `GET` | `/restoranlar/{id}/menu` | Restoran menüsü (kategori + ürün) |
+| `GET` | `/restoranlar/yakin?enlem=&boylam=&radius=` | Konum bazlı yakın restoranlar |
+| `GET` | `/restoranlar/qr/{kod}` | QR kod ile restoran/menü |
+| `POST` | `/restoranlar` | Restoran ekle |
+| `POST` | `/restoranlar/{id}/kategoriler` | Kategori ekle |
+| `POST` | `/kategoriler/{id}/urunler` | Ürün ekle |
+
+Ayrıntılı kullanım: [`pick-a-bite-backend/KULLANIM.md`](pick-a-bite-backend/KULLANIM.md)
+
+---
+
+## 🩹 Sorun Giderme
+
+| Sorun | Çözüm |
+|-------|-------|
+| **Chatbot "menü bilgisi yok" diyor** | Backend çalışmıyor veya `.env`'deki `BACKEND_URL` yanlış. Backend'i başlat, URL'i kontrol et. |
+| **Haritada restoran yok** | `node populate.js` ile veri yükle; backend açık mı bak. |
+| **`localhost:8081` tarayıcıda hata** | Normal — react-native-maps web'i desteklemez. Telefonda test et. |
+| **Türkçe karakterler bozuk (Ä±)** | `application.properties`'te UTF-8 zorlaması var; backend'i yeniden başlat ve veriyi tekrar yükle. |
+| **Expo'da `GetEnv.NoBoolean: 1`** | `CI=1` yerine `CI=true` kullan ya da hiç kullanma. |
+| **Tunnel düştü (530/503)** | `cloudflared`'i yeniden başlat, yeni URL'i `.env`'e yaz, Expo'yu yeniden başlat. |
+| **Telefon backend'e ulaşamıyor** | Telefon ile PC aynı ağda mı? Ya da Cloudflare tunnel kullan. |
+
+**Tüm servisleri durdurma:**
 ```bash
-cd pick-a-bite-backend
-# PostgreSQL'de "postgres" database hazır olmalı
-./mvnw spring-boot:run
-# Port 8080'de çalışır, prefix: /pick-a-bite/
+taskkill /F /IM cloudflared.exe /IM java.exe /IM node.exe
 ```
 
-### Frontend
-```bash
-cd pick-a-bite-main
-# .env içinde BACKEND_URL=http://localhost:8080/pick-a-bite
-npx expo start
-```
+---
 
-## Teknoloji Yığını
-
-| Katman | Teknoloji |
-|---|---|
-| Mobil | React Native, Expo SDK 54, TypeScript, Expo Router |
-| Backend | Spring Boot 3.5.14, Java 17, Spring Data JPA, JWT |
-| Veritabanı | PostgreSQL |
-| AI | Groq (llama-3.3-70b-versatile) + Gemini (fallback) |
-| Harita | react-native-maps |
-| Veri Toplama | Python (pandas, Google Places API) |
-
-## Yapılan İşler
-
-- Spring Boot REST API + JWT auth (controller, service, repository, DTO)
-- PostgreSQL şeması (Kullanici, Restoran, Kategori, Urun, QRKod, ChatSession, ChatMessage)
-- Python veri toplama (Bursa restoranları + menüleri JSON)
-- React Native mobil arayüz (harita, QR, profil, chatbot)
-- Groq API entegrasyonu — chatbot doğal dil öneri
-- AsyncStorage ile kullanıcı tercih kalıcılığı
-
-## Belgeler
+## 📚 Belgeler
 
 `pick-a-bite-main/docs/` altında:
-- Gereksinim Dokümanı
-- İş Planı
-- Katalog
-- Kullanım Durum Diyagramı
-- Kullanım Kılavuzu v1.0
-- Sınıf Diyagramı
-- Uygulama Mimarisi
+
+- **Gereksinim Dokümanı** — işlevsel/işlevsel olmayan gereksinimler
+- **Uygulama Mimarisi** — 4 katmanlı mimari detayı
+- **Sınıf Diyagramı** & **Kullanım Durum Diyagramı** — UML
+- **Kullanım Kılavuzu** — ekran ekran kullanım
+- **İş Planı** — haftalık görev dağılımı
+- **Katalog** — ürün tanıtım broşürü
+
+---
+
+## 📄 Lisans
+
+Bu proje Bursa Teknik Üniversitesi BLM0324 dersi kapsamında eğitim amaçlı geliştirilmiştir.
