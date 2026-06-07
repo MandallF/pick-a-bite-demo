@@ -46,8 +46,12 @@ out/
 # Demo runtime artifacts
 expo-tunnel-qr.png
 expo-qr.png
-pick-a-bite-backend/data/
-*.mv.db
+# NOT: pickabite-h2.mv.db (ornek 4 restoran + 20 urun) BILEREK repoya dahil
+# edildi ki baska bir cihazda clone sonrasi veritabani HAZIR gelsin
+# (seed adimi gerekmez). Sadece gecici H2 dosyalarini haric tutuyoruz:
 *.trace.db
+*.lock.db
+pick-a-bite-backend/data/*.trace.db
+pick-a-bite-backend/data/*.lock.db
 # Cloudflare tunnel log (geçici)
 cf_tunnel.log
