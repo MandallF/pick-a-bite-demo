@@ -122,6 +122,7 @@ export const fetchAllRestaurantsFromBackend = async (): Promise<Restaurant[]> =>
               ) / 10
             : undefined;
         const temel = {
+          id: r.id,
           ad: baseName,
           adres: r.adres || "",
           enlem: r.enlem,

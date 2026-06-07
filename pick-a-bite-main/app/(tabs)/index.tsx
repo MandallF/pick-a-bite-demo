@@ -1,10 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Camera } from "expo-camera";
+import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   StyleSheet,
   Text,
   TextInput,
@@ -12,52 +15,76 @@ import {
   View,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
-import { apiJSON } from "../../lib/api";
 
-interface BackendRestaurant {
-  id: number;
-  restoranAdi: string;
-  enlem: number;
-  boylam: number;
-  adres?: string;
-  aciklama?: string;
-  qrKod?: string;
-}
+import { Restaurant } from "../../lib/chatTypes";
+import { fetchAllRestaurantsFromBackend, urunUygunMu } from "../../lib/menuService";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [restaurants, setRestaurants] = useState<BackendRestaurant[]>([]);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
+  const [viewMode, setViewMode] = useState<"map" | "list">("map");
+  const [userPrefs, setUserPrefs] = useState<string[]>([]);
+  const [locationGranted, setLocationGranted] = useState(false);
 
-  // Backend'den restoranları çek
+  // Konum izni + profil tercihleri + restoran verisi
   useEffect(() => {
-    const loadRestaurants = async () => {
+    (async () => {
+      // 1) Konum izni (gereksinim: konum tabanlı keşif)
       try {
-        const data = await apiJSON<BackendRestaurant[]>("/restoranlar");
-        if (Array.isArray(data)) {
-          setRestaurants(data);
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          setLocationGranted(true);
+        } else {
+          Alert.alert(
+            "Konum İzni",
+            "Konum izni verilmedi. Yakın restoranlar varsayılan bölgeye (Bursa) göre gösterilecek."
+          );
         }
+      } catch {
+        /* izin akışı başarısız — varsayılan bölge ile devam */
+      }
+
+      // 2) Profil tercihleri (uygunluk işaretlemesi için)
+      try {
+        const saved = await AsyncStorage.getItem("userPreferences");
+        if (saved) setUserPrefs(JSON.parse(saved));
+      } catch {
+        /* ignore */
+      }
+
+      // 3) Restoranlar + menüleri (mesafe + uygunluk için)
+      try {
+        const data = await fetchAllRestaurantsFromBackend();
+        setRestaurants(data);
       } catch (err) {
         console.warn("Restoranlar yüklenemedi:", err);
       } finally {
         setLoading(false);
       }
-    };
-    loadRestaurants();
+    })();
   }, []);
 
-  const filteredRestaurants = searchText
-    ? restaurants.filter((r) =>
-        r.restoranAdi.toLowerCase().includes(searchText.toLowerCase())
-      )
+  // Tercihe uygun en az bir ürünü olan restoran mı?
+  const uygunMu = (rest: Restaurant): boolean =>
+    userPrefs.length > 0 && rest.menuler.some((item) => urunUygunMu(item, userPrefs));
+
+  const filtered = searchText
+    ? restaurants.filter((r) => r.ad.toLowerCase().includes(searchText.toLowerCase()))
     : restaurants;
+
+  // Liste görünümünde: tercihe uygunları ve yakınları öne al
+  const sortedForList = [...filtered].sort((a, b) => {
+    const ua = uygunMu(a) ? 0 : 1;
+    const ub = uygunMu(b) ? 0 : 1;
+    if (ua !== ub) return ua - ub;
+    return (a.mesafe ?? 999) - (b.mesafe ?? 999);
+  });
 
   const requestCameraPermission = async () => {
     const { status } = await Camera.requestCameraPermissionsAsync();
     const granted = status === "granted";
-    setHasPermission(granted);
     if (!granted) {
       Alert.alert("İzin Gerekli", "QR kod okutmak için kamera izni vermelisin.");
     }
@@ -65,48 +92,98 @@ export default function HomeScreen() {
   };
 
   const handleOpenCamera = async () => {
-    const granted = await requestCameraPermission();
-    if (granted) router.push("/camera");
+    if (await requestCameraPermission()) router.push("/camera");
   };
-
   const handleOpenChatbot = () => router.push("/chatbot");
   const handleOpenProfile = () => router.push("/profile");
-
-  const handleRestaurantPress = (restaurant: BackendRestaurant) => {
+  const handleRestaurantPress = (rest: Restaurant) => {
+    if (rest.id == null) return;
     router.push({
       pathname: "/restaurant/[id]",
-      params: { id: String(restaurant.id), ad: restaurant.restoranAdi },
+      params: { id: String(rest.id), ad: rest.ad },
     });
   };
 
-  // İlk restorana göre merkez (varsa), yoksa Bursa merkez
   const initialRegion = {
-    latitude: restaurants.length > 0 ? restaurants[0].enlem : 40.195,
-    longitude: restaurants.length > 0 ? restaurants[0].boylam : 29.06,
+    latitude: restaurants.find((r) => r.enlem != null)?.enlem ?? 40.195,
+    longitude: restaurants.find((r) => r.boylam != null)?.boylam ?? 29.06,
     latitudeDelta: 0.025,
     longitudeDelta: 0.025,
   };
 
   return (
     <View style={styles.container}>
-      <MapView
-        style={StyleSheet.absoluteFillObject}
-        initialRegion={initialRegion}
-      >
-        {filteredRestaurants.map((r) => (
-          <Marker
-            key={r.id}
-            coordinate={{ latitude: r.enlem, longitude: r.boylam }}
-            title={r.restoranAdi}
-            description={r.adres || r.aciklama || "Menüyü görmek için tıkla"}
-            pinColor="#319795"
-            onCalloutPress={() => handleRestaurantPress(r)}
-            onPress={() => handleRestaurantPress(r)}
-          />
-        ))}
-      </MapView>
+      {/* ── İÇERİK: HARİTA veya LİSTE ── */}
+      {viewMode === "map" ? (
+        <MapView
+          style={StyleSheet.absoluteFillObject}
+          initialRegion={initialRegion}
+          showsUserLocation={locationGranted}
+        >
+          {filtered.map((r) =>
+            r.enlem != null && r.boylam != null ? (
+              <Marker
+                key={r.id}
+                coordinate={{ latitude: r.enlem, longitude: r.boylam }}
+                title={r.ad}
+                description={
+                  uygunMu(r)
+                    ? "✓ Tercihlerine uygun · Menü için tıkla"
+                    : r.adres || "Menü için tıkla"
+                }
+                pinColor={uygunMu(r) ? "#38a169" : "#319795"}
+                onCalloutPress={() => handleRestaurantPress(r)}
+                onPress={() => handleRestaurantPress(r)}
+              />
+            ) : null
+          )}
+        </MapView>
+      ) : (
+        <FlatList
+          style={styles.listContainer}
+          contentContainerStyle={styles.listContent}
+          data={sortedForList}
+          keyExtractor={(r) => String(r.id)}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.listCard}
+              onPress={() => handleRestaurantPress(item)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.listIcon}>
+                <Ionicons name="restaurant" size={22} color="white" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.listName}>{item.ad}</Text>
+                <View style={styles.listMetaRow}>
+                  {item.mesafe != null && (
+                    <View style={styles.metaChip}>
+                      <Ionicons name="location-outline" size={12} color="#666" />
+                      <Text style={styles.metaText}>{item.mesafe} km</Text>
+                    </View>
+                  )}
+                  <Text style={styles.listAdres} numberOfLines={1}>
+                    {item.adres}
+                  </Text>
+                </View>
+                {uygunMu(item) && (
+                  <View style={styles.uygunBadge}>
+                    <Ionicons name="checkmark-circle" size={13} color="#38a169" />
+                    <Text style={styles.uygunText}>Tercihlerine uygun</Text>
+                  </View>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            </TouchableOpacity>
+          )}
+          ListHeaderComponent={<View style={{ height: 108 }} />}
+          ListEmptyComponent={
+            !loading ? <Text style={styles.emptyText}>Restoran bulunamadı</Text> : null
+          }
+        />
+      )}
 
-      {/* Arama + Profil */}
+      {/* ── Arama + Profil ── */}
       <View style={styles.searchOverlay}>
         <View style={styles.searchBox}>
           <Ionicons name="search-outline" size={20} color="#666" />
@@ -123,7 +200,34 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Yükleme göstergesi */}
+      {/* ── Harita / Liste geçişi + sayaç ── */}
+      {!loading && (
+        <View style={styles.toggleBanner}>
+          <View style={styles.segment}>
+            <TouchableOpacity
+              style={[styles.segmentBtn, viewMode === "map" && styles.segmentActive]}
+              onPress={() => setViewMode("map")}
+            >
+              <Ionicons name="map-outline" size={15} color={viewMode === "map" ? "white" : "#319795"} />
+              <Text style={[styles.segmentText, viewMode === "map" && styles.segmentTextActive]}>
+                Harita
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.segmentBtn, viewMode === "list" && styles.segmentActive]}
+              onPress={() => setViewMode("list")}
+            >
+              <Ionicons name="list-outline" size={15} color={viewMode === "list" ? "white" : "#319795"} />
+              <Text style={[styles.segmentText, viewMode === "list" && styles.segmentTextActive]}>
+                Liste
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.counterText}>{filtered.length} restoran</Text>
+        </View>
+      )}
+
+      {/* ── Yükleme göstergesi ── */}
       {loading && (
         <View style={styles.loadingBanner}>
           <ActivityIndicator color="#319795" />
@@ -131,37 +235,27 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Sonuç sayacı */}
-      {!loading && (
-        <View style={styles.counterBanner}>
-          <Ionicons name="restaurant-outline" size={16} color="#319795" />
-          <Text style={styles.counterText}>
-            {filteredRestaurants.length} restoran bulundu
-          </Text>
-        </View>
+      {/* ── Chatbot Paneli (sadece harita modunda) ── */}
+      {viewMode === "map" && (
+        <TouchableOpacity
+          style={styles.chatbotPanel}
+          onPress={handleOpenChatbot}
+          activeOpacity={0.85}
+        >
+          <View style={styles.chatbotPanelLeft}>
+            <View style={styles.chatbotIconCircle}>
+              <Ionicons name="sparkles" size={18} color="white" />
+            </View>
+            <View>
+              <Text style={styles.chatbotPanelTitle}>Bugün canınız ne çekiyor?</Text>
+              <Text style={styles.chatbotPanelSubtitle}>AI ile kişisel öneri al</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#319795" />
+        </TouchableOpacity>
       )}
 
-      {/* "Bugün canınız ne çekiyor?" Chatbot Paneli */}
-      <TouchableOpacity
-        style={styles.chatbotPanel}
-        onPress={handleOpenChatbot}
-        activeOpacity={0.85}
-      >
-        <View style={styles.chatbotPanelLeft}>
-          <View style={styles.chatbotIconCircle}>
-            <Ionicons name="sparkles" size={18} color="white" />
-          </View>
-          <View>
-            <Text style={styles.chatbotPanelTitle}>Bugün canınız ne çekiyor?</Text>
-            <Text style={styles.chatbotPanelSubtitle}>
-              AI ile kişisel öneri al
-            </Text>
-          </View>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#319795" />
-      </TouchableOpacity>
-
-      {/* QR Tarayıcı Butonu */}
+      {/* ── QR Tarayıcı Butonu ── */}
       <TouchableOpacity style={styles.qrButton} onPress={handleOpenCamera}>
         <Ionicons name="qr-code-outline" size={28} color="white" />
         <Text style={styles.qrButtonText}>Menü Tara</Text>
@@ -171,7 +265,8 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: "#f7fafc" },
+
   searchOverlay: {
     position: "absolute",
     top: 50,
@@ -209,9 +304,58 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
+
+  // Harita / Liste geçiş çubuğu
+  toggleBanner: {
+    position: "absolute",
+    top: 104,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  segment: {
+    flexDirection: "row",
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  segmentBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+  },
+  segmentActive: { backgroundColor: "#319795" },
+  segmentText: { fontSize: 13, color: "#319795", fontWeight: "600" },
+  segmentTextActive: { color: "white" },
+  counterText: {
+    color: "#319795",
+    fontSize: 13,
+    fontWeight: "600",
+    backgroundColor: "white",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+
   loadingBanner: {
     position: "absolute",
-    top: 120,
+    top: 150,
     alignSelf: "center",
     backgroundColor: "white",
     flexDirection: "row",
@@ -227,24 +371,51 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   loadingText: { color: "#666", fontSize: 13, fontWeight: "500" },
-  counterBanner: {
-    position: "absolute",
-    top: 120,
-    alignSelf: "center",
+
+  // Liste görünümü
+  listContainer: { flex: 1 },
+  listContent: { paddingHorizontal: 16, paddingBottom: 110 },
+  listCard: {
     backgroundColor: "white",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
+    gap: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  counterText: { color: "#319795", fontSize: 13, fontWeight: "600" },
+  listIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: "#319795",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  listName: { fontSize: 15, fontWeight: "700", color: "#1a202c" },
+  listMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
+  metaChip: { flexDirection: "row", alignItems: "center", gap: 3 },
+  metaText: { color: "#666", fontSize: 12, fontWeight: "500" },
+  listAdres: { color: "#999", fontSize: 12, flex: 1 },
+  uygunBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 6,
+    backgroundColor: "#e8faf0",
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  uygunText: { color: "#38a169", fontSize: 11, fontWeight: "600" },
+  emptyText: { textAlign: "center", color: "#999", marginTop: 40, fontSize: 14 },
+
   chatbotPanel: {
     position: "absolute",
     bottom: 130,
@@ -263,12 +434,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  chatbotPanelLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flex: 1,
-  },
+  chatbotPanelLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   chatbotIconCircle: {
     width: 36,
     height: 36,
@@ -279,6 +445,7 @@ const styles = StyleSheet.create({
   },
   chatbotPanelTitle: { color: "#1a202c", fontWeight: "700", fontSize: 14 },
   chatbotPanelSubtitle: { color: "#666", fontSize: 12, marginTop: 2 },
+
   qrButton: {
     position: "absolute",
     bottom: 30,

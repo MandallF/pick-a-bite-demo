@@ -26,6 +26,7 @@ export interface MenuItem {
 
 /** Backend'den çekilen restoran + menüsü. */
 export interface Restaurant {
+  id?: number;
   ad: string;
   adres: string;
   menuler: MenuItem[];
