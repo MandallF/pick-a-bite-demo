@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   SafeAreaView,
@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { cikisYap, Kullanici, mevcutKullanici } from "../lib/authService";
 
 // ─────────────────────────────────────────────
 // TİP TANIMLARI
@@ -96,13 +97,44 @@ export default function ProfileScreen() {
   const [isEditing, setIsEditing] = useState(false);
   // Kaydedilmemiş değişiklik var mı? (Kaydet butonunu vurgulamak için)
   const [hasChanges, setHasChanges] = useState(false);
+  // Giriş yapan kullanıcı (null = misafir)
+  const [kullanici, setKullanici] = useState<Kullanici | null>(null);
 
-  // Kullanıcı bilgileri (Gerçek uygulamada auth context'ten gelir)
-  const user = {
-    name: "Fatih Göral",
-    email: "fatih@example.com",
-    memberSince: "Mayıs 2026",
+  // Profil her odaklandığında giriş durumunu tazele
+  // (login/register'dan dönünce bilgiler güncellensin)
+  useFocusEffect(
+    useCallback(() => {
+      mevcutKullanici().then(setKullanici);
+    }, [])
+  );
+
+  // Çıkış yap — token silinir, misafir moduna dönülür
+  const handleCikis = () => {
+    Alert.alert("Çıkış Yap", "Hesabından çıkmak istediğine emin misin?", [
+      { text: "Vazgeç", style: "cancel" },
+      {
+        text: "Çıkış Yap",
+        style: "destructive",
+        onPress: async () => {
+          await cikisYap();
+          setKullanici(null);
+        },
+      },
+    ]);
   };
+
+  // Görünen ad / baş harfler (giriş yoksa misafir)
+  const adSoyad = kullanici
+    ? `${kullanici.ad ?? ""} ${kullanici.soyad ?? ""}`.trim() || kullanici.email
+    : "Misafir Kullanıcı";
+  const basHarfler = kullanici
+    ? (adSoyad
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase() || "?")
+    : "?";
 
   // Uygulama açılınca kayıtlı tercihleri yükle
   useEffect(() => {
@@ -184,22 +216,33 @@ export default function ProfileScreen() {
         {/* ── KULLANICI BİLGİ KARTI ── */}
         <View style={styles.userCard}>
           <View style={styles.avatarBig}>
-            <Text style={styles.avatarInitials}>
-              {user.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
-            </Text>
+            <Text style={styles.avatarInitials}>{basHarfler}</Text>
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>{user.name}</Text>
-            <Text style={styles.userEmail}>{user.email}</Text>
-            <View style={styles.memberBadge}>
-              <Ionicons name="star" size={10} color="#ED8936" />
-              <Text style={styles.memberText}>
-                Üye: {user.memberSince}
-              </Text>
-            </View>
+            <Text style={styles.userName}>{adSoyad}</Text>
+            {kullanici ? (
+              <>
+                <Text style={styles.userEmail}>{kullanici.email}</Text>
+                <View style={styles.memberBadge}>
+                  <Ionicons name="shield-checkmark" size={10} color="#319795" />
+                  <Text style={styles.memberText}>Giriş yapıldı</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.userEmail}>
+                  Giriş yaparak tercihlerini buluta kaydet
+                </Text>
+                <TouchableOpacity
+                  style={styles.girisMiniBtn}
+                  onPress={() => router.push("/login")}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="log-in-outline" size={14} color="white" />
+                  <Text style={styles.girisMiniText}>Giriş Yap / Kayıt Ol</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
 
@@ -287,11 +330,13 @@ export default function ProfileScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* ── ÇIKIŞ BUTONU ── */}
-        <TouchableOpacity style={styles.logoutBtn}>
-          <Ionicons name="log-out-outline" size={20} color="#e53e3e" />
-          <Text style={styles.logoutText}>Çıkış Yap</Text>
-        </TouchableOpacity>
+        {/* ── ÇIKIŞ BUTONU (yalnızca giriş yapıldıysa) ── */}
+        {kullanici && (
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleCikis}>
+            <Ionicons name="log-out-outline" size={20} color="#e53e3e" />
+            <Text style={styles.logoutText}>Çıkış Yap</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -404,6 +449,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#ED8936",
     fontWeight: "600",
+  },
+  girisMiniBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+    backgroundColor: "#319795",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+  girisMiniText: {
+    fontSize: 12,
+    color: "white",
+    fontWeight: "700",
   },
 
   /* Bölüm Başlığı */

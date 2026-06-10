@@ -2,6 +2,7 @@
  * Merkezi API yardımcıları.
  * Tüm ekranlar backend'e buradan erişir — BACKEND_URL ve fetch mantığı tek yerde.
  */
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Backend adresi .env'deki EXPO_PUBLIC_BACKEND_URL'den gelir.
 // Tanımsızsa yerel geliştirme için localhost'a düşer.
@@ -16,8 +17,34 @@ const TUNNEL_HEADERS: Record<string, string> = {
   "User-Agent": "PickABite/1.0",
 };
 
+// ── JWT token yönetimi ──────────────────────────────────────────
+// Giriş/kayıt yapınca token kaydedilir, çıkışta silinir. Misafir
+// kullanıcıda token yoktur; o zaman Authorization header eklenmez ve
+// herkese açık uçlar (harita, menü, QR) normal çalışır.
+const TOKEN_KEY = "authToken";
+
+export async function getToken(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function setToken(token: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(TOKEN_KEY, token);
+  } catch {}
+}
+
+export async function clearToken(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(TOKEN_KEY);
+  } catch {}
+}
+
 /**
- * Zaman aşımlı fetch — tunnel header'ları otomatik eklenir.
+ * Zaman aşımlı fetch — tunnel header'ları ve (varsa) JWT otomatik eklenir.
  * Ham Response döner (çağıran taraf kendi işler).
  */
 export async function apiFetch(
@@ -27,10 +54,18 @@ export async function apiFetch(
 ): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const token = await getToken();
+  const authHeader: Record<string, string> = token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
   try {
     return await fetch(url, {
       ...options,
-      headers: { ...TUNNEL_HEADERS, ...(options.headers || {}) },
+      headers: {
+        ...TUNNEL_HEADERS,
+        ...authHeader,
+        ...(options.headers || {}),
+      },
       signal: controller.signal,
     });
   } finally {
