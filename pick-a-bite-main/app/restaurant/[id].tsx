@@ -1,9 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +14,8 @@ import {
   View,
 } from "react-native";
 import { apiJSON } from "../../lib/api";
+import { PREF_LABELS } from "../../lib/groqClient";
+import { urunUygunMu } from "../../lib/menuService";
 
 interface Urun {
   id: number;
@@ -46,6 +51,19 @@ export default function RestaurantScreen() {
   const [menu, setMenu] = useState<MenuResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Ürün detay modalı: dokunulan ürün + kategorisi
+  const [seciliUrun, setSeciliUrun] = useState<{
+    urun: Urun;
+    kategoriAdi: string;
+  } | null>(null);
+  // Kullanıcının kayıtlı beslenme tercihleri (uygunluk rozetinde kullanılır)
+  const [userPrefs, setUserPrefs] = useState<string[]>([]);
+
+  useEffect(() => {
+    AsyncStorage.getItem("userPreferences")
+      .then((saved) => setUserPrefs(saved ? JSON.parse(saved) : []))
+      .catch(() => setUserPrefs([]));
+  }, []);
 
   useEffect(() => {
     const loadMenu = async () => {
@@ -65,6 +83,22 @@ export default function RestaurantScreen() {
     (sum, k) => sum + (k.urunler?.length ?? 0),
     0
   ) ?? 0;
+
+  // Urun -> menuService.MenuItem dönüşümü (alerjenler alanı "etiketler" olarak beklenir)
+  const toMenuItem = (urun: Urun, kategoriAdi: string) => ({
+    urunAdi: urun.urunAdi,
+    fiyat: urun.fiyat,
+    kategori: kategoriAdi,
+    aciklama: urun.aciklama,
+    etiketler: urun.alerjenler,
+    tahminiKalori: urun.tahminiKalori,
+  });
+
+  // Ürünle çelişen tercih id'leri (boş dizi = uygun)
+  const uyumsuzTercihler = (urun: Urun, kategoriAdi: string): string[] =>
+    userPrefs.filter(
+      (pref) => !urunUygunMu(toMenuItem(urun, kategoriAdi), [pref])
+    );
 
   return (
     <View style={styles.container}>
@@ -144,7 +178,14 @@ export default function RestaurantScreen() {
               </View>
 
               {kategori.urunler?.map((urun) => (
-                <View key={urun.id} style={styles.productCard}>
+                <TouchableOpacity
+                  key={urun.id}
+                  style={styles.productCard}
+                  activeOpacity={0.7}
+                  onPress={() =>
+                    setSeciliUrun({ urun, kategoriAdi: kategori.kategoriAdi })
+                  }
+                >
                   <View style={{ flex: 1 }}>
                     <Text style={styles.productName}>{urun.urunAdi}</Text>
                     {urun.aciklama && (
@@ -155,7 +196,7 @@ export default function RestaurantScreen() {
                         <View style={styles.metaChip}>
                           <Ionicons name="flame-outline" size={12} color="#ed8936" />
                           <Text style={styles.metaText}>
-                            {urun.tahminiKalori} kcal
+                            ~{urun.tahminiKalori} kcal
                           </Text>
                         </View>
                       )}
@@ -168,12 +209,13 @@ export default function RestaurantScreen() {
                         </View>
                       )}
                     </View>
+                    <Text style={styles.detayIpucu}>Detay için dokunun</Text>
                   </View>
                   <View style={styles.priceBox}>
                     <Text style={styles.priceText}>{urun.fiyat.toFixed(0)}</Text>
                     <Text style={styles.priceCurrency}>TL</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           ))}
@@ -181,6 +223,144 @@ export default function RestaurantScreen() {
           <View style={{ height: 24 }} />
         </ScrollView>
       )}
+
+      {/* ── ÜRÜN DETAY MODALI ── */}
+      <Modal
+        visible={seciliUrun !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSeciliUrun(null)}
+      >
+        <Pressable
+          style={styles.modalArkaplan}
+          onPress={() => setSeciliUrun(null)}
+        >
+          {/* İç panele dokununca kapanmasın */}
+          <Pressable style={styles.modalPanel} onPress={() => {}}>
+            {seciliUrun && (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Başlık + kategori */}
+                <View style={styles.modalBaslikSatir}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modalUrunAdi}>
+                      {seciliUrun.urun.urunAdi}
+                    </Text>
+                    <View style={styles.modalKategoriChip}>
+                      <Text style={styles.modalKategoriText}>
+                        {seciliUrun.kategoriAdi}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.modalKapatBtn}
+                    onPress={() => setSeciliUrun(null)}
+                  >
+                    <Ionicons name="close" size={22} color="#4a5568" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Açıklama */}
+                {seciliUrun.urun.aciklama && (
+                  <Text style={styles.modalAciklama}>
+                    {seciliUrun.urun.aciklama}
+                  </Text>
+                )}
+
+                {/* Fiyat + kalori satırı */}
+                <View style={styles.modalBilgiSatir}>
+                  <View style={styles.modalFiyatKutu}>
+                    <Text style={styles.modalFiyatText}>
+                      {seciliUrun.urun.fiyat.toFixed(0)} TL
+                    </Text>
+                  </View>
+                  {seciliUrun.urun.tahminiKalori != null && (
+                    <View style={styles.modalKaloriKutu}>
+                      <Ionicons name="flame" size={16} color="#ed8936" />
+                      <Text style={styles.modalKaloriText}>
+                        ~{seciliUrun.urun.tahminiKalori} kcal (tahminî)
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Alerjenler */}
+                {seciliUrun.urun.alerjenler &&
+                seciliUrun.urun.alerjenler.length > 0 ? (
+                  <View style={styles.modalAlerjenKutu}>
+                    <View style={styles.modalAlerjenBaslik}>
+                      <Ionicons name="warning" size={16} color="#c53030" />
+                      <Text style={styles.modalAlerjenBaslikText}>
+                        Alerjen bilgisi
+                      </Text>
+                    </View>
+                    <Text style={styles.modalAlerjenText}>
+                      {seciliUrun.urun.alerjenler.join(", ")}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.modalAlerjenYokKutu}>
+                    <Ionicons
+                      name="checkmark-circle-outline"
+                      size={16}
+                      color="#2f855a"
+                    />
+                    <Text style={styles.modalAlerjenYokText}>
+                      Bilinen alerjen kaydı yok
+                    </Text>
+                  </View>
+                )}
+
+                {/* Kullanıcı tercihlerine göre uygunluk */}
+                {userPrefs.length > 0 &&
+                  (() => {
+                    const uyumsuz = uyumsuzTercihler(
+                      seciliUrun.urun,
+                      seciliUrun.kategoriAdi
+                    );
+                    return uyumsuz.length === 0 ? (
+                      <View style={styles.modalUygunKutu}>
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={18}
+                          color="#2f855a"
+                        />
+                        <Text style={styles.modalUygunText}>
+                          Beslenme tercihlerinize uygun görünüyor
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.modalUygunsuzKutu}>
+                        <Ionicons name="close-circle" size={18} color="#c53030" />
+                        <Text style={styles.modalUygunsuzText}>
+                          Şu tercihlerinizle uyumlu olmayabilir:{" "}
+                          {uyumsuz
+                            .map((p) => PREF_LABELS[p] || p)
+                            .join(", ")}
+                        </Text>
+                      </View>
+                    );
+                  })()}
+
+                {/* Tahminî bilgi uyarısı (gereksinim: kesin sağlık tavsiyesi değildir) */}
+                <View style={styles.modalUyariKutu}>
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={16}
+                    color="#718096"
+                  />
+                  <Text style={styles.modalUyariText}>
+                    Kalori ve alerjen bilgileri yapay zekâ destekli tahminlerdir;
+                    kesin sağlık tavsiyesi değildir. Ciddi alerji durumunda
+                    sipariş öncesinde restorandan doğrulama yapınız.
+                  </Text>
+                </View>
+
+                <View style={{ height: 8 }} />
+              </ScrollView>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -286,4 +466,132 @@ const styles = StyleSheet.create({
   },
   priceText: { color: "white", fontWeight: "700", fontSize: 18, lineHeight: 20 },
   priceCurrency: { color: "white", fontSize: 10, opacity: 0.9 },
+  detayIpucu: { color: "#a0aec0", fontSize: 10, marginTop: 6 },
+
+  /* Ürün detay modalı */
+  modalArkaplan: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  modalPanel: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: "80%",
+  },
+  modalBaslikSatir: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  modalUrunAdi: { fontSize: 20, fontWeight: "700", color: "#1a202c" },
+  modalKategoriChip: {
+    alignSelf: "flex-start",
+    backgroundColor: "#e6fffa",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 6,
+  },
+  modalKategoriText: { color: "#319795", fontSize: 11, fontWeight: "600" },
+  modalKapatBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f1f5f9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalAciklama: {
+    color: "#4a5568",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 12,
+  },
+  modalBilgiSatir: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 16,
+  },
+  modalFiyatKutu: {
+    backgroundColor: "#319795",
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  modalFiyatText: { color: "white", fontWeight: "700", fontSize: 18 },
+  modalKaloriKutu: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#fef5e7",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  modalKaloriText: { color: "#c05621", fontSize: 13, fontWeight: "600" },
+  modalAlerjenKutu: {
+    backgroundColor: "#fff5f5",
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: "#fed7d7",
+  },
+  modalAlerjenBaslik: { flexDirection: "row", alignItems: "center", gap: 6 },
+  modalAlerjenBaslikText: {
+    color: "#c53030",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  modalAlerjenText: { color: "#742a2a", fontSize: 13, marginTop: 6 },
+  modalAlerjenYokKutu: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 14,
+  },
+  modalAlerjenYokText: { color: "#2f855a", fontSize: 13 },
+  modalUygunKutu: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#f0fff4",
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#c6f6d5",
+  },
+  modalUygunText: { color: "#2f855a", fontSize: 13, fontWeight: "600", flex: 1 },
+  modalUygunsuzKutu: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#fff5f5",
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#fed7d7",
+  },
+  modalUygunsuzText: {
+    color: "#c53030",
+    fontSize: 13,
+    fontWeight: "600",
+    flex: 1,
+  },
+  modalUyariKutu: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#f7fafc",
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 14,
+  },
+  modalUyariText: { color: "#718096", fontSize: 11, lineHeight: 16, flex: 1 },
 });
