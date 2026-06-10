@@ -20,7 +20,7 @@ import jakarta.servlet.http.HttpServletResponse;
  * JWT bekleyen REST API icin 401 JSON yaniti uretir.
  */
 // SONRAYA: 401 JSON entry point — SecurityConfig ile birlikte geri acin.
-// @Component
+@Component
 public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
 	private final ObjectMapper objectMapper = new ObjectMapper();

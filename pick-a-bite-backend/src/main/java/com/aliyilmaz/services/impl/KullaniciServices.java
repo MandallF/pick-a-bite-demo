@@ -12,7 +12,7 @@ import com.aliyilmaz.repository.KullaniciRepository;
 import com.aliyilmaz.services.IKullaniciServices;
 
 // SONRAYA: Kullanici tercihleri — KullaniciController ile geri acin.
-// @Service
+@Service
 public class KullaniciServices implements IKullaniciServices {
 
 	private final KullaniciRepository kullaniciRepository;

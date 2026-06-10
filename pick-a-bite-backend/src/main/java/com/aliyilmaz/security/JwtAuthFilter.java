@@ -15,7 +15,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 // SONRAYA: Authorization (Bearer JWT) filtresi — geri acin.
-// @Component
+@Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
 	private static final String BEARER_ON_EKI = "Bearer ";

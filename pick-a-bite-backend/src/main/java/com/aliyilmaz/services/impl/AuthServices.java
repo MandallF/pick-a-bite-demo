@@ -19,7 +19,7 @@ import com.aliyilmaz.security.JwtService;
 import com.aliyilmaz.services.IAuthServices;
 
 // SONRAYA: Kayit / giris is mantigi — SecurityConfig + @RestController Auth ile geri acin.
-// @Service
+@Service
 public class AuthServices implements IAuthServices {
 
 	private final KullaniciRepository kullaniciRepository;

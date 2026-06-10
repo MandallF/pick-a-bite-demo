@@ -13,7 +13,7 @@ import com.aliyilmaz.entities.Kullanici;
 import com.aliyilmaz.repository.KullaniciRepository;
 
 // SONRAYA: Spring Security kullanici yukleme — geri acin.
-// @Service
+@Service
 public class CustomUserDetailsService implements UserDetailsService {
 
 	private final KullaniciRepository kullaniciRepository;

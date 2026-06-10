@@ -18,8 +18,8 @@ import com.aliyilmaz.services.IAuthServices;
 import jakarta.validation.Valid;
 
 // SONRAYA: Kayit / giris / JWT — asagidaki iki anotasyonu geri acin.
-// @RestController
-// @RequestMapping("/pick-a-bite/auth")
+@RestController
+@RequestMapping("/pick-a-bite/auth")
 public class AuthController implements IAuthController {
 
 	private final IAuthServices authServices;

@@ -15,7 +15,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
 // SONRAYA: JWT uretim — AuthServices ile birlikte geri acin.
-// @Service
+@Service
 public class JwtService {
 
 	private final SecretKey signingKey;

@@ -15,8 +15,8 @@ import com.aliyilmaz.services.IKullaniciServices;
 import jakarta.validation.Valid;
 
 // SONRAYA: Tercih uclari (JWT ile) — asagidaki iki anotasyonu geri acin.
-// @RestController
-// @RequestMapping("/pick-a-bite/kullanici")
+@RestController
+@RequestMapping("/pick-a-bite/kullanici")
 public class KullaniciController implements IKullaniciController {
 
 	private final IKullaniciServices kullaniciServices;
