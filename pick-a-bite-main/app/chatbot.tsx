@@ -58,6 +58,7 @@ export default function ChatbotScreen() {
   const restaurantName = qrData ? extractName(qrData as string) : undefined;
 
   const [userPrefs, setUserPrefs] = useState<string[]>([]);
+  const [userButce, setUserButce] = useState<string>("");
   const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([]);
   const [menuContext, setMenuContext] = useState<string | undefined>(undefined);
   const [inputText, setInputText] = useState("");
@@ -81,6 +82,8 @@ export default function ChatbotScreen() {
       try {
         const saved = await AsyncStorage.getItem("userPreferences");
         if (saved) setUserPrefs(JSON.parse(saved));
+        const savedButce = await AsyncStorage.getItem("userButce");
+        if (savedButce) setUserButce(savedButce);
       } catch { /* ignore */ }
 
       // 2) QR Code varsa O menüyü çek, yoksa tüm restoranları çek
@@ -152,7 +155,7 @@ export default function ChatbotScreen() {
     // Veri var ama hiçbir ürün eşleşmediyse: boş sonuç durumu
     const noMatch = allRestaurants.length > 0 && filteredResults.length === 0;
 
-    askGroq(nextMessages, restaurantName, menuContext, userPrefs, filteredResults, noMatch)
+    askGroq(nextMessages, restaurantName, menuContext, userPrefs, filteredResults, noMatch, userButce)
       .then(aiText => {
         setMessages(m => [...m, { id: `a-${Date.now()}`, role: "assistant", text: aiText, timestamp: new Date() }]);
       })
@@ -160,7 +163,7 @@ export default function ChatbotScreen() {
         setIsLoading(false);
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150);
       });
-  }, [messages, isLoading, isInitializing, restaurantName, menuContext, userPrefs, allRestaurants]);
+  }, [messages, isLoading, isInitializing, restaurantName, menuContext, userPrefs, userButce, allRestaurants]);
 
   const renderMsg = ({ item }: { item: Message }) => {
     const isUser = item.role === "user";

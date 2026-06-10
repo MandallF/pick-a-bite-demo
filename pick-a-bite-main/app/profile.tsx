@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -99,6 +100,8 @@ export default function ProfileScreen() {
   const [hasChanges, setHasChanges] = useState(false);
   // Giriş yapan kullanıcı (null = misafir)
   const [kullanici, setKullanici] = useState<Kullanici | null>(null);
+  // Varsayılan bütçe (TL, string — boş = sınır yok)
+  const [butce, setButce] = useState("");
 
   // Profil her odaklandığında giriş durumunu tazele
   // (login/register'dan dönünce bilgiler güncellensin)
@@ -150,6 +153,8 @@ export default function ProfileScreen() {
             }))
           );
         }
+        const savedButce = await AsyncStorage.getItem("userButce");
+        if (savedButce) setButce(savedButce);
       } catch (e) {
         console.log("Tercihler yüklenemedi:", e);
       }
@@ -175,6 +180,7 @@ export default function ProfileScreen() {
         .filter((p) => p.enabled)
         .map((p) => p.id);
       await AsyncStorage.setItem("userPreferences", JSON.stringify(activeIds));
+      await AsyncStorage.setItem("userButce", butce.trim());
       setHasChanges(false);
       Alert.alert(
         "Tercihler Kaydedildi",
@@ -245,6 +251,29 @@ export default function ProfileScreen() {
             )}
           </View>
         </View>
+
+        {/* ── VARSAYILAN BÜTÇE ── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Varsayılan Bütçe</Text>
+        </View>
+        <View style={styles.butceCard}>
+          <Ionicons name="wallet-outline" size={20} color="#319795" />
+          <TextInput
+            style={styles.butceInput}
+            placeholder="Örn. 300 (boş = sınır yok)"
+            placeholderTextColor="#aaa"
+            keyboardType="numeric"
+            value={butce}
+            onChangeText={(t) => {
+              setButce(t.replace(/[^0-9]/g, ""));
+              setHasChanges(true);
+            }}
+          />
+          <Text style={styles.butceTl}>TL</Text>
+        </View>
+        <Text style={styles.sectionDesc}>
+          Asistan, önerilerinde bu bütçeyi otomatik dikkate alır.
+        </Text>
 
         {/* ── AKTİF TERCİH SAYACI ── */}
         <View style={styles.sectionHeader}>
@@ -465,6 +494,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "white",
     fontWeight: "700",
+  },
+  butceCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "white",
+    marginHorizontal: 16,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    height: 54,
+    borderWidth: 1,
+    borderColor: "#eaeaea",
+  },
+  butceInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#1a1a1a",
+  },
+  butceTl: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#319795",
   },
 
   /* Bölüm Başlığı */

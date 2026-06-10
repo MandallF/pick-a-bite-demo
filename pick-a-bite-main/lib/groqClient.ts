@@ -29,11 +29,17 @@ export const askGroq = async (
   userPrefs?: string[],
   filteredResults?: MenuItem[],
   /** Veri var ama kriterlere uyan ürün bulunamadıysa true. */
-  noMatch?: boolean
+  noMatch?: boolean,
+  /** Kullanıcının profilde tanımladığı varsayılan bütçe (TL). */
+  userButce?: string
 ): Promise<string> => {
   const prefText = userPrefs?.length
     ? userPrefs.map((id) => PREF_LABELS[id] || id).join(", ")
     : "Herhangi bir kısıtlama yok";
+
+  const butceText = userButce
+    ? `\nKullanıcının varsayılan bütçesi: ${userButce} TL. Kullanıcı sorgusunda farklı bir tutar belirtmediyse bu bütçeyi dikkate al ve aşma.`
+    : "";
 
   // QR menüsü varsa sistem mesajına ekle, yoksa genel mod
   const menuSection = menuContext
@@ -41,7 +47,7 @@ export const askGroq = async (
     : "";
 
   const systemPrompt = `Sen Pick A Bite uygulamasının akıllı restoran asistanısın.
-Kullanıcı tercihleri: ${prefText}${menuSection}
+Kullanıcı tercihleri: ${prefText}${butceText}${menuSection}
 
 KURALLAR:
 1. Sorguyu analiz et ve kesin önerileri ver
