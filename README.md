@@ -38,6 +38,7 @@ Pick A Bite, restoranda **"ne yiyeceğim?"** sorusunu çözen bir karar destek u
 | 6 | **Kişisel Tercihler** | Vegan / glütensiz / laktoz / alerjen / bütçe — "Tercihleri Kaydet" ile kalıcı |
 | 7 | **Kayıt / Giriş (JWT)** | Misafir + opsiyonel hesap: kayıt, giriş, çıkış; tokenlar güvenli saklanır |
 | 8 | **Otomatik Menü Senkronu** | Dijital menü kaynağı her 60 sn'de taranır; fiyat/ürün değişiklikleri uygulamaya kendiliğinden yansır |
+| 9 | **QR ile Keşif** | Sistemde olmayan restoranın web menü QR'ı okutulunca menü çıkarılıp kalıcı kaydedilir — restoran herkes için menülü olur ve otomatik senkrona dahil edilir |
 
 ---
 

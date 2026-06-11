@@ -13,6 +13,12 @@ public interface AppRepository extends JpaRepository<Restoran, Integer> {
 
 	Optional<Restoran> findByQrKod(String qrKod);
 
+	/** QR keşfiyle aynı menü kaynağı daha önce eklendiyse onu bulur (tekilleştirme). */
+	Optional<Restoran> findByMenuKaynakUrl(String menuKaynakUrl);
+
+	/** Menü kaynağı URL'i tanımlı restoranlar — otomatik URL senkronunda taranır. */
+	List<Restoran> findByMenuKaynakUrlIsNotNull();
+
 	/**
 	 * Verilen merkez koordinatlardan belirtilen yarıçap (km) içindeki restoranları
 	 * Haversine formülü ile en yakındakinden başlayarak listeler.

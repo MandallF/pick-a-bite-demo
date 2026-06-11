@@ -45,6 +45,7 @@ public class MenuSenkronServisi {
 
 	private final AppRepository appRepository;
 	private final ObjectMapper objectMapper;
+	private final MenuKaynakOkuyucu menuKaynakOkuyucu;
 
 	@Value("${app.menu.senkron.kaynak:./menu-kaynak.json}")
 	private String kaynakYolu;
@@ -55,9 +56,11 @@ public class MenuSenkronServisi {
 	private volatile long toplamCalisma;
 	private volatile String sonHata;
 
-	public MenuSenkronServisi(AppRepository appRepository, ObjectMapper objectMapper) {
+	public MenuSenkronServisi(AppRepository appRepository, ObjectMapper objectMapper,
+			MenuKaynakOkuyucu menuKaynakOkuyucu) {
 		this.appRepository = appRepository;
 		this.objectMapper = objectMapper;
+		this.menuKaynakOkuyucu = menuKaynakOkuyucu;
 	}
 
 	@Scheduled(fixedDelayString = "${app.menu.senkron.aralik-ms:60000}", initialDelayString = "${app.menu.senkron.baslangic-ms:15000}")
@@ -79,6 +82,7 @@ public class MenuSenkronServisi {
 			for (KaynakRestoran kr : guvenli(menu.restoranlar)) {
 				degisiklik += restoranSenkronla(kr);
 			}
+			degisiklik += urlKaynaklariSenkronla();
 			sonDegisiklik = degisiklik;
 			sonHata = null;
 			if (degisiklik > 0) {
@@ -90,6 +94,29 @@ public class MenuSenkronServisi {
 		}
 	}
 
+	/**
+	 * QR keşfiyle eklenen restoranların web menü kaynaklarını tarar.
+	 * Tek bir kaynağın erişilemez olması diğerlerini durdurmaz.
+	 */
+	private int urlKaynaklariSenkronla() {
+		int degisiklik = 0;
+		for (Restoran restoran : appRepository.findByMenuKaynakUrlIsNotNull()) {
+			try {
+				List<KaynakKategori> kategoriler = menuKaynakOkuyucu
+						.urlMenuOku(restoran.getMenuKaynakUrl());
+				int fark = kategorileriSenkronla(restoran, kategoriler);
+				if (fark > 0) {
+					appRepository.save(restoran);
+					degisiklik += fark;
+				}
+			} catch (Exception e) {
+				log.warn("Menü senkron: '{}' URL kaynağı okunamadı ({}).",
+						restoran.getRestoranAdi(), e.getMessage());
+			}
+		}
+		return degisiklik;
+	}
+
 	private int restoranSenkronla(KaynakRestoran kr) {
 		if (kr.qrKod == null || kr.qrKod.isBlank()) {
 			return 0;
@@ -99,9 +126,22 @@ public class MenuSenkronServisi {
 			return 0; // kaynaktaki bilinmeyen restoranlar atlanır (restoran ekleme ayrı süreç)
 		}
 		Restoran restoran = bulunan.get();
+		int degisiklik = kategorileriSenkronla(restoran, guvenli(kr.kategoriler));
+
+		if (degisiklik > 0) {
+			appRepository.save(restoran);
+		}
+		return degisiklik;
+	}
+
+	/**
+	 * Kaynak kategori listesini restoranın menüsüyle karşılaştırıp farkları
+	 * uygular. Hem dosya kaynaklı hem URL kaynaklı (QR keşfi) senkron kullanır.
+	 */
+	int kategorileriSenkronla(Restoran restoran, List<KaynakKategori> kaynakKategoriler) {
 		int degisiklik = 0;
 
-		for (KaynakKategori kk : guvenli(kr.kategoriler)) {
+		for (KaynakKategori kk : guvenli(kaynakKategoriler)) {
 			if (kk.kategoriAdi == null || kk.kategoriAdi.isBlank()) {
 				continue;
 			}
@@ -129,9 +169,6 @@ public class MenuSenkronServisi {
 			}
 		}
 
-		if (degisiklik > 0) {
-			appRepository.save(restoran);
-		}
 		return degisiklik;
 	}
 

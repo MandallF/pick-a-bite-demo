@@ -48,6 +48,13 @@ public class Restoran {
 	@Column(name = "aciklama", length = 1000)
 	private String aciklama;
 
+	/**
+	 * Restoranın dijital menü kaynağı (QR keşfiyle öğrenilen web menü adresi).
+	 * Dolu ise otomatik menü senkronu bu URL'i de belirli aralıklarla tarar.
+	 */
+	@Column(name = "menu_kaynak_url", length = 500)
+	private String menuKaynakUrl;
+
 	@Column(name = "olusturma_tarihi", nullable = false, updatable = false)
 	private LocalDateTime olusturmaTarihi;
 

@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -41,9 +42,57 @@ export default function CameraScreen() {
     setScanned(true);
     console.log("QR DATA:", data);
 
-    // 1) QR bir web URL'i ise: restoran web menüsünü chatbot analiz etsin
+    // 1) QR bir web URL'i ise: QR KEŞFİ — menü sunucuda çıkarılıp KALICI
+    //    kaydedilir (restoran tüm kullanıcılar için menülü olur ve otomatik
+    //    senkrona girer). Çıkarılamazsa eski davranışa düşülür: chatbot
+    //    menüyü o oturum için geçici analiz eder.
     if (/^https?:\/\//i.test(data)) {
-      router.replace({ pathname: "/chatbot", params: { qrData: data } });
+      setChecking(true);
+      try {
+        // Konum varsa restoran haritada kullanıcının olduğu yere yerleşir.
+        // getLastKnownPositionAsync izin istemez; izin yoksa null döner.
+        let konum: Location.LocationObject | null = null;
+        try {
+          konum = await Location.getLastKnownPositionAsync();
+        } catch {}
+
+        const sonuc: any = await apiJSON(
+          "/restoranlar/qr-kesif",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url: data,
+              enlem: konum?.coords.latitude,
+              boylam: konum?.coords.longitude,
+            }),
+          },
+          15000
+        );
+        if (sonuc?.restoran?.id) {
+          if (sonuc.yeniEklendi) {
+            Alert.alert(
+              "Restoran Eklendi 🎉",
+              `"${sonuc.restoran.restoranAdi}" menüsüyle birlikte (${sonuc.urunSayisi} ürün) sisteme kaydedildi. Menü artık haritada herkese açık ve otomatik güncellenecek.`,
+              [{ text: "Menüyü Aç" }]
+            );
+          }
+          router.replace({
+            pathname: "/restaurant/[id]",
+            params: {
+              id: String(sonuc.restoran.id),
+              ad: sonuc.restoran.restoranAdi,
+            },
+          });
+          return;
+        }
+        throw new Error("keşif sonuçsuz");
+      } catch {
+        // Menü çıkarılamadı / backend kapalı → geçici AI analizi (eski akış)
+        router.replace({ pathname: "/chatbot", params: { qrData: data } });
+      } finally {
+        setChecking(false);
+      }
       return;
     }
 
