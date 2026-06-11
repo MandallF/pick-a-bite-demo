@@ -72,7 +72,25 @@ UYGUN ÜRÜN BULUNAMAZSA:
 - Sistem "uygun ürün bulunamadı" derse uydurma. Durumu nazikçe açıkla ve
   kullanıcıya kriterlerini gevşetmesini öner (bütçe, kategori veya tercih).
 
-EN ÖNEMLİ KURAL — RESTORANA GÖRE GRUPLA:
+${
+  menuContext
+    ? `EN ÖNEMLİ KURAL — KATEGORİYE GÖRE GRUPLA (tek restoran modu):
+Tek bir restoranın menüsündesin; önerileri ASLA düz liste verme.
+Ürünleri menü kategorilerine göre grupla (Yemekler, Tatlılar, İçecekler
+gibi); kategori adını başlık yap, altında ürünleri FİYATI ARTAN sırada
+listele. En ucuz uygun seçeneği 💰 ile EN BAŞTA tek cümleyle öne çıkar.
+
+ÖRNEK ÇIKTI FORMATI:
+💰 En uygun seçenek: Ayran — ₺35
+
+🍽️ Yemekler
+   • Yarım Ekmek Döner — ₺235
+   • Dürüm Döner — ₺235
+   • Porsiyon Döner — ₺325
+
+🥤 İçecekler
+   • Ayran — ₺35`
+    : `EN ÖNEMLİ KURAL — RESTORANA GÖRE GRUPLA:
 Kullanıcı hangi restorana gideceğini bilmek ister. Bu yüzden önerileri
 DÜZ LİSTE olarak verme. Her zaman restorana göre grupla: önce restoran
 adını + mesafesini başlık yap, altına o restorandaki uygun ürünleri ve
@@ -96,7 +114,8 @@ MESAFE VE FİYAT:
    • Kazandibi — ₺90
 
 Her ürünün hangi restoranda olduğu net görünmeli. Aynı ürün birden çok
-restoranda varsa hepsini ayrı ayrı göster ki kullanıcı en uygun yeri seçsin.`;
+restoranda varsa hepsini ayrı ayrı göster ki kullanıcı en uygun yeri seçsin.`
+}`;
 
   // Groq API için messages formatı
   const messages: any[] = [{ role: "system", content: systemPrompt }];

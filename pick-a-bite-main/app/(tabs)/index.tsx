@@ -77,11 +77,15 @@ export default function HomeScreen() {
   const uygunMu = (rest: Restaurant): boolean =>
     userPrefs.length > 0 && rest.menuler.some((item) => urunUygunMu(item, userPrefs));
 
-  // Harita pin rengi: tercih yok ya da MENÜ BİLİNMİYOR → mavi (nötr),
-  // uygun → yeşil, menüsü var ama uygun değil → kırmızı.
-  // Menüsüz restoranı kırmızı boyamak yanıltıcı olur: uygunsuz değil, bilinmiyor.
+  // Harita pin rengi:
+  //   GRİ    → menüsü henüz olmayan restoran (QR keşfi bekliyor)
+  //   MAVİ   → menülü, tercih seçilmemiş (nötr)
+  //   YEŞİL  → menülü ve tercihlere uygun
+  //   KIRMIZI→ menülü ama tercihlere uygun değil
+  // Menüsüzler gri olunca haritada menülü restoranlar bir bakışta seçilir.
   const pinRengi = (rest: Restaurant): string => {
-    if (userPrefs.length === 0 || !menusuVar(rest)) return "#2b6cb0"; // mavi
+    if (!menusuVar(rest)) return "#9aa5b1"; // gri — menü yok
+    if (userPrefs.length === 0) return "#2b6cb0"; // mavi — nötr
     return uygunMu(rest) ? "#2f855a" : "#e53e3e"; // yeşil / kırmızı
   };
 

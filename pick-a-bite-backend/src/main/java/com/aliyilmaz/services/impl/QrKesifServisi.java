@@ -58,8 +58,10 @@ public class QrKesifServisi {
 	public DtoQrKesifSonuc kesfet(DtoQrKesif istek) {
 		String url = istek.getUrl().trim();
 
-		// 1) Aynı menü kaynağı daha önce keşfedildiyse mevcut kaydı dön
-		Optional<Restoran> kayitli = appRepository.findByMenuKaynakUrl(url);
+		// 1) Aynı menü kaynağı daha önce keşfedildiyse mevcut kaydı dön.
+		//    Karşılaştırma NORMALİZE edilir: http/https, www. öneki ve sondaki
+		//    "/" farkları aynı kaynak sayılır (aksi halde kopya restoran açılır).
+		Optional<Restoran> kayitli = kaynakSahibiniBul(url);
 		if (kayitli.isPresent()) {
 			Restoran r = kayitli.get();
 			log.info("QR keşif: '{}' zaten kayıtlı (id={}), mevcut kayıt dönüyor.",
@@ -70,6 +72,18 @@ public class QrKesifServisi {
 		// 2) Menüyü kaynaktan çıkar (başarısızsa BusinessException —
 		//    mobil taraf chatbot'taki geçici analize geri düşer)
 		List<KaynakKategori> kategoriler = menuKaynakOkuyucu.urlMenuOku(url);
+
+		// 2a) YARIŞ KORUMASI: yukarıdaki çekim saniyeler sürebilir; bu sırada
+		//     aynı QR tekrar okutulup ilk istek kaydı oluşturmuş olabilir
+		//     (telefon zaman aşımına düşse bile sunucu işlemi tamamlar).
+		//     Kaydetmeden hemen önce İKİNCİ kez kontrol et — kopyayı önler.
+		kayitli = kaynakSahibiniBul(url);
+		if (kayitli.isPresent()) {
+			Restoran r = kayitli.get();
+			log.info("QR keşif: '{}' eşzamanlı istekle zaten eklendi (id={}), kopya açılmadı.",
+					r.getRestoranAdi(), r.getId());
+			return new DtoQrKesifSonuc(appServices.restoranGetir(r.getId()), false, urunSay(r));
+		}
 
 		// 2b) Kayıtlı bir restorana BAĞLAMA modu: menü toplayıcı, Places'tan
 		//     gelen menüsüz restoranın web menüsünü bulduğunda yeni kayıt
@@ -123,6 +137,39 @@ public class QrKesifServisi {
 				restoran.getRestoranAdi(), restoran.getId(), urunSayisi, url);
 
 		return new DtoQrKesifSonuc(appServices.restoranGetir(restoran.getId()), true, urunSayisi);
+	}
+
+	/**
+	 * Verilen URL ile AYNI kaynağı gösteren kayıtlı restoranı bulur.
+	 * Karşılaştırma anahtarı: şema (http/https) yok sayılır, host'taki
+	 * "www." kırpılır, sondaki "/" atılır, küçük harfe çevrilir.
+	 */
+	private Optional<Restoran> kaynakSahibiniBul(String url) {
+		String anahtar = urlAnahtari(url);
+		if (anahtar.isEmpty()) {
+			return Optional.empty();
+		}
+		for (Restoran r : appRepository.findByMenuKaynakUrlIsNotNull()) {
+			if (urlAnahtari(r.getMenuKaynakUrl()).equals(anahtar)) {
+				return Optional.of(r);
+			}
+		}
+		return Optional.empty();
+	}
+
+	static String urlAnahtari(String url) {
+		if (url == null) {
+			return "";
+		}
+		String s = url.trim().toLowerCase();
+		s = s.replaceFirst("^https?://", "");
+		if (s.startsWith("www.")) {
+			s = s.substring(4);
+		}
+		while (s.endsWith("/")) {
+			s = s.substring(0, s.length() - 1);
+		}
+		return s;
 	}
 
 	private static String restoranAdiBelirle(DtoQrKesif istek, String url) {

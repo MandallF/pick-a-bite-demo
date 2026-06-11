@@ -67,7 +67,9 @@ export default function CameraScreen() {
               boylam: konum?.coords.longitude,
             }),
           },
-          15000
+          // Gerçek siteler yavaş yanıtlayabilir; erken vazgeçmek sunucuda işlem
+          // sürerken kullanıcıyı tekrar okutmaya itiyordu (kopya riski).
+          25000
         );
         if (sonuc?.restoran?.id) {
           if (sonuc.yeniEklendi) {
@@ -99,7 +101,9 @@ export default function CameraScreen() {
     // 2) Aksi halde backend QR kodu varsay → sistemde kayıtlı mı doğrula
     setChecking(true);
     try {
-      const restoran: any = await apiJSON(`/restoranlar/qr/${encodeURIComponent(data)}`);
+      // Uç DtoMenu döner: { restoran: {id, restoranAdi...}, kategoriler: [...] }
+      const yanit: any = await apiJSON(`/restoranlar/qr/${encodeURIComponent(data)}`);
+      const restoran = yanit?.restoran ?? yanit;
       if (restoran && restoran.id) {
         router.replace({
           pathname: "/restaurant/[id]",

@@ -316,11 +316,18 @@ export default function RestaurantScreen() {
                       {seciliUrun.urun.fiyat.toFixed(0)} TL
                     </Text>
                   </View>
-                  {seciliUrun.urun.tahminiKalori != null && (
+                  {seciliUrun.urun.tahminiKalori != null ? (
                     <View style={styles.modalKaloriKutu}>
                       <Ionicons name="flame" size={16} color="#ed8936" />
                       <Text style={styles.modalKaloriText}>
                         ~{seciliUrun.urun.tahminiKalori} kcal (tahminî)
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.modalKaloriYokKutu}>
+                      <Ionicons name="flame-outline" size={14} color="#a0aec0" />
+                      <Text style={styles.modalKaloriYokText}>
+                        Kalori analizi henüz yapılmadı
                       </Text>
                     </View>
                   )}
@@ -606,6 +613,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   modalKaloriText: { color: "#c05621", fontSize: 13, fontWeight: "600" },
+  modalKaloriYokKutu: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#f7fafc",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  modalKaloriYokText: { color: "#a0aec0", fontSize: 12 },
   modalAlerjenKutu: {
     backgroundColor: "#fff5f5",
     borderRadius: 12,

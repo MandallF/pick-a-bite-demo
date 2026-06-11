@@ -93,6 +93,21 @@ export default function ChatbotScreen() {
         const menu = await fetchMenuFromQrUrl(qrData as string);
         setMenuContext(menu);
         setStatusText("✓");
+        // Analiz bitti — "yükleniyor" karşılamasını sonuç mesajıyla değiştir,
+        // kullanıcı beklemede kalmadığını görsün.
+        const menuHazir = !!menu && menu.length > 40;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === "welcome"
+              ? {
+                  ...m,
+                  text: menuHazir
+                    ? `✅ **${restaurantName}** menüsünü analiz ettim!\n\nArtık sorularını sorabilirsin — örneğin *"300 TL altı ne önerirsin?"* ya da *"en hafif seçenek hangisi?"* 🍽️`
+                    : `⚠️ **${restaurantName}** menüsüne şu anda ulaşamadım.\n\nBağlantıyı kontrol edip tekrar deneyebilir ya da genel sorularını sorabilirsin.`,
+                }
+              : m
+          )
+        );
       } else {
         // Tüm restoranları çek
         setStatusText("Restoranlar yükleniyor...");
