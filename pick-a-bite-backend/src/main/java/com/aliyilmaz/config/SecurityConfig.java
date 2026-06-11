@@ -71,7 +71,9 @@ public class SecurityConfig {
 								AntPathRequestMatcher.antMatcher("/pick-a-bite/auth/kayit"),
 								AntPathRequestMatcher.antMatcher("/pick-a-bite/auth/giris")).permitAll()
 						.requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.GET,
-								"/pick-a-bite/restoranlar/**")).permitAll()
+								"/pick-a-bite/restoranlar/**"),
+								AntPathRequestMatcher.antMatcher(HttpMethod.GET,
+										"/pick-a-bite/senkron/**")).permitAll()
 						.requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.POST,
 								"/pick-a-bite/restoranlar/**"),
 								AntPathRequestMatcher.antMatcher(HttpMethod.POST,

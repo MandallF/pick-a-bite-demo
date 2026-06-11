@@ -58,11 +58,32 @@ export default function RestaurantScreen() {
   } | null>(null);
   // Kullanıcının kayıtlı beslenme tercihleri (uygunluk rozetinde kullanılır)
   const [userPrefs, setUserPrefs] = useState<string[]>([]);
+  // Otomatik menü senkronunun son çalışma bilgisi ("X dk önce güncellendi")
+  const [senkronYazisi, setSenkronYazisi] = useState<string | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem("userPreferences")
       .then((saved) => setUserPrefs(saved ? JSON.parse(saved) : []))
       .catch(() => setUserPrefs([]));
+  }, []);
+
+  // Menü güncelliği göstergesi — backend'deki zamanlanmış senkronun durumu.
+  // Alınamazsa sessizce gizlenir (gösterge bilgilendirme amaçlı).
+  useEffect(() => {
+    apiJSON<{ sonCalisma?: string }>("/senkron/durum", {}, 5000)
+      .then((d) => {
+        if (!d?.sonCalisma) return;
+        const farkDk = Math.max(
+          0,
+          Math.round((Date.now() - new Date(d.sonCalisma).getTime()) / 60000)
+        );
+        setSenkronYazisi(
+          farkDk === 0
+            ? "Menü az önce kaynakla senkronlandı"
+            : `Menü ${farkDk} dk önce kaynakla senkronlandı`
+        );
+      })
+      .catch(() => setSenkronYazisi(null));
   }, []);
 
   useEffect(() => {

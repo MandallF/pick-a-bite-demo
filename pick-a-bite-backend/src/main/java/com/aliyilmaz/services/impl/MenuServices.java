@@ -150,7 +150,11 @@ public class MenuServices implements IMenuServices {
 		dto.setSiraNo(k.getSiraNo());
 		List<DtoUrun> urunler = new ArrayList<>();
 		for (Urun u : k.getUrunler()) {
-			urunler.add(urunToDto(u));
+			// Kaynaktan kaldırılan (mevcut=false) ürünler kullanıcı menüsünde
+			// gösterilmez — otomatik senkron menüden düşürür, geri gelirse açar.
+			if (u.isMevcut()) {
+				urunler.add(urunToDto(u));
+			}
 		}
 		dto.setUrunler(urunler);
 		return dto;

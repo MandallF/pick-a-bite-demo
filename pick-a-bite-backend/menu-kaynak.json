@@ -1,0 +1,208 @@
+{
+  "restoranlar": [
+    {
+      "qrKod": "9de44c8f-1106-4160-b6fe-20ccc19668ca",
+      "restoranAdi": "Tatlıcı Safa",
+      "kategoriler": [
+        {
+          "kategoriAdi": "Sütlü Tatlılar",
+          "urunler": [
+            {
+              "urunAdi": "Fırın Sütlaç",
+              "aciklama": "Fırınlanmış geleneksel sütlaç",
+              "fiyat": 80,
+              "tahminiKalori": 250,
+              "alerjenler": []
+            },
+            {
+              "urunAdi": "Kazandibi",
+              "aciklama": "Karamelize edilmiş muhallebi",
+              "fiyat": 90,
+              "tahminiKalori": 280,
+              "alerjenler": []
+            },
+            {
+              "urunAdi": "Supangle",
+              "aciklama": "Çikolatalı ve kek parçacıklı",
+              "fiyat": 95,
+              "tahminiKalori": 310,
+              "alerjenler": []
+            },
+            {
+              "urunAdi": "Trileçe",
+              "aciklama": "Karamelli trileçe",
+              "fiyat": 110,
+              "tahminiKalori": 350,
+              "alerjenler": []
+            }
+          ]
+        },
+        {
+          "kategoriAdi": "Şerbetli Tatlılar",
+          "urunler": [
+            {
+              "urunAdi": "Baklava",
+              "aciklama": "Antep fıstıklı klasik baklava",
+              "fiyat": 150,
+              "tahminiKalori": 450,
+              "alerjenler": []
+            },
+            {
+              "urunAdi": "Künefe",
+              "aciklama": "Sıcak ve peynirli şerbetli tatlı",
+              "fiyat": 120,
+              "tahminiKalori": 500,
+              "alerjenler": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "qrKod": "2220f9d5-31e7-4b51-b154-dfb25f10bdd8",
+      "restoranAdi": "Lezzet Durağı",
+      "kategoriler": [
+        {
+          "kategoriAdi": "Ana Yemekler",
+          "urunler": [
+            {
+              "urunAdi": "Izgara Tavuk",
+              "aciklama": "Tavuk göğsü, pilav ve salata eşliğinde",
+              "fiyat": 140,
+              "tahminiKalori": 380,
+              "alerjenler": []
+            },
+            {
+              "urunAdi": "Vegan Kase",
+              "aciklama": "Kinoa, avokado, nohut ve taze yeşillikler",
+              "fiyat": 130,
+              "tahminiKalori": 290,
+              "alerjenler": []
+            }
+          ]
+        },
+        {
+          "kategoriAdi": "Tatlılar",
+          "urunler": [
+            {
+              "urunAdi": "Dondurma",
+              "aciklama": "3 top karışık Maraş dondurması",
+              "fiyat": 75,
+              "tahminiKalori": 180,
+              "alerjenler": []
+            },
+            {
+              "urunAdi": "Meyve Tabağı",
+              "aciklama": "Mevsim meyveleri",
+              "fiyat": 60,
+              "tahminiKalori": 120,
+              "alerjenler": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "qrKod": "f662680a-5c7e-4dfb-9837-be1dda3bde6a",
+      "restoranAdi": "Yeşil Ev",
+      "kategoriler": [
+        {
+          "kategoriAdi": "Sütlü Tatlılar",
+          "urunler": [
+            {
+              "urunAdi": "Sakızlı Muhallebi",
+              "aciklama": "Damla sakızlı geleneksel muhallebi",
+              "fiyat": 75,
+              "tahminiKalori": 210,
+              "alerjenler": []
+            },
+            {
+              "urunAdi": "Keşkül",
+              "aciklama": "Bademli sütlü tatlı",
+              "fiyat": 85,
+              "tahminiKalori": 240,
+              "alerjenler": []
+            }
+          ]
+        },
+        {
+          "kategoriAdi": "Sağlıklı Seçenekler",
+          "urunler": [
+            {
+              "urunAdi": "Glutensiz Brownie",
+              "aciklama": "Glutensiz un ve bitter çikolata ile",
+              "fiyat": 95,
+              "tahminiKalori": 260,
+              "alerjenler": []
+            },
+            {
+              "urunAdi": "Vegan Puding",
+              "aciklama": "Hindistan cevizi sütü ve chia tohumlu",
+              "fiyat": 80,
+              "tahminiKalori": 190,
+              "alerjenler": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "qrKod": "33f4c82c-a75e-47d2-93b0-c5123833913c",
+      "restoranAdi": "Lezzet Kebapçısı",
+      "kategoriler": [
+        {
+          "kategoriAdi": "Kebaplar",
+          "urunler": [
+            {
+              "urunAdi": "Adana Kebap",
+              "aciklama": "Zırh kıyması, lavaş ve közlenmiş biber ile",
+              "fiyat": 240,
+              "tahminiKalori": 550,
+              "alerjenler": []
+            },
+            {
+              "urunAdi": "Urfa Kebap",
+              "aciklama": "Acısız zırh kıyması, lavaş ve mezeler ile",
+              "fiyat": 230,
+              "tahminiKalori": 520,
+              "alerjenler": []
+            },
+            {
+              "urunAdi": "İskender Kebap",
+              "aciklama": "Bursa döneri, pide, tereyağı ve yoğurt ile",
+              "fiyat": 290,
+              "tahminiKalori": 720,
+              "alerjenler": []
+            },
+            {
+              "urunAdi": "Tavuk Şiş",
+              "aciklama": "Marine edilmiş tavuk but, pilav eşliğinde",
+              "fiyat": 200,
+              "tahminiKalori": 450,
+              "alerjenler": []
+            }
+          ]
+        },
+        {
+          "kategoriAdi": "İçecekler",
+          "urunler": [
+            {
+              "urunAdi": "Ayran",
+              "aciklama": "Bol köpüklü yayık ayranı",
+              "fiyat": 30,
+              "tahminiKalori": 80,
+              "alerjenler": []
+            },
+            {
+              "urunAdi": "Şalgam Suyu",
+              "aciklama": "Acılı veya acısız organik şalgam",
+              "fiyat": 35,
+              "tahminiKalori": 15,
+              "alerjenler": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
