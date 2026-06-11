@@ -20,4 +20,10 @@ public class DtoQrKesif {
 	private Double enlem;
 
 	private Double boylam;
+
+	/**
+	 * Opsiyonel: doluysa menü YENİ restoran açmak yerine bu kayıtlı restorana
+	 * bağlanır (menü toplayıcının Places'tan gelen restoranları menülemesi için).
+	 */
+	private Integer restoranId;
 }

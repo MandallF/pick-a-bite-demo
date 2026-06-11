@@ -50,11 +50,19 @@ public class MenuSenkronServisi {
 	@Value("${app.menu.senkron.kaynak:./menu-kaynak.json}")
 	private String kaynakYolu;
 
+	/**
+	 * URL kaynakları (gerçek web siteleri) dosya kaynağından DAHA SEYREK
+	 * taranır — dış sitelere her dakika istek atmak hem yavaş hem kaba olur.
+	 */
+	@Value("${app.menu.senkron.url-aralik-ms:3600000}")
+	private long urlAralikMs;
+
 	// Durum bilgisi — /senkron/durum ucundan okunur
 	private volatile LocalDateTime sonCalisma;
 	private volatile int sonDegisiklik;
 	private volatile long toplamCalisma;
 	private volatile String sonHata;
+	private volatile long sonUrlSenkronMs;
 
 	public MenuSenkronServisi(AppRepository appRepository, ObjectMapper objectMapper,
 			MenuKaynakOkuyucu menuKaynakOkuyucu) {
@@ -82,7 +90,10 @@ public class MenuSenkronServisi {
 			for (KaynakRestoran kr : guvenli(menu.restoranlar)) {
 				degisiklik += restoranSenkronla(kr);
 			}
-			degisiklik += urlKaynaklariSenkronla();
+			if (System.currentTimeMillis() - sonUrlSenkronMs >= urlAralikMs) {
+				degisiklik += urlKaynaklariSenkronla();
+				sonUrlSenkronMs = System.currentTimeMillis();
+			}
 			sonDegisiklik = degisiklik;
 			sonHata = null;
 			if (degisiklik > 0) {

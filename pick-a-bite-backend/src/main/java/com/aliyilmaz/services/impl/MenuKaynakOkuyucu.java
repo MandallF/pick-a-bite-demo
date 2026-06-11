@@ -224,7 +224,9 @@ public class MenuKaynakOkuyucu {
 		}
 
 		List<KaynakKategori> sonuc = new ArrayList<>();
-		if (!kk.urunler.isEmpty()) {
+		// Kalite eşiği: metin yedeği en az 3 ürün bulamadıysa menü SAYILMAZ —
+		// sayfadaki tek tük "... 100 TL" eşleşmesi sahte menü üretmesin.
+		if (kk.urunler.size() >= 3) {
 			sonuc.add(kk);
 		}
 		return sonuc;

@@ -16,6 +16,7 @@ import com.aliyilmaz.dto.DtoQrKesifSonuc;
 import com.aliyilmaz.entities.Kategori;
 import com.aliyilmaz.entities.Restoran;
 import com.aliyilmaz.entities.Urun;
+import com.aliyilmaz.exception.ResourceNotFoundException;
 import com.aliyilmaz.repository.AppRepository;
 import com.aliyilmaz.services.IAppServices;
 import com.aliyilmaz.services.impl.MenuSenkronServisi.KaynakKategori;
@@ -43,12 +44,14 @@ public class QrKesifServisi {
 	private final AppRepository appRepository;
 	private final MenuKaynakOkuyucu menuKaynakOkuyucu;
 	private final IAppServices appServices;
+	private final MenuSenkronServisi menuSenkronServisi;
 
 	public QrKesifServisi(AppRepository appRepository, MenuKaynakOkuyucu menuKaynakOkuyucu,
-			IAppServices appServices) {
+			IAppServices appServices, MenuSenkronServisi menuSenkronServisi) {
 		this.appRepository = appRepository;
 		this.menuKaynakOkuyucu = menuKaynakOkuyucu;
 		this.appServices = appServices;
+		this.menuSenkronServisi = menuSenkronServisi;
 	}
 
 	@Transactional
@@ -67,6 +70,22 @@ public class QrKesifServisi {
 		// 2) Menüyü kaynaktan çıkar (başarısızsa BusinessException —
 		//    mobil taraf chatbot'taki geçici analize geri düşer)
 		List<KaynakKategori> kategoriler = menuKaynakOkuyucu.urlMenuOku(url);
+
+		// 2b) Kayıtlı bir restorana BAĞLAMA modu: menü toplayıcı, Places'tan
+		//     gelen menüsüz restoranın web menüsünü bulduğunda yeni kayıt
+		//     açmak yerine menüyü o restorana işler ve kaynağı senkrona bağlar.
+		if (istek.getRestoranId() != null) {
+			Restoran r = appRepository.findById(istek.getRestoranId())
+					.orElseThrow(() -> new ResourceNotFoundException(
+							"Restoran bulunamadı: " + istek.getRestoranId()));
+			r.setMenuKaynakUrl(url);
+			menuSenkronServisi.kategorileriSenkronla(r, kategoriler);
+			r = appRepository.save(r);
+			int urunSayisi = urunSay(r);
+			log.info("QR keşif: menü mevcut restorana bağlandı — '{}' (id={}, {} ürün), kaynak: {}",
+					r.getRestoranAdi(), r.getId(), urunSayisi, url);
+			return new DtoQrKesifSonuc(appServices.restoranGetir(r.getId()), false, urunSayisi);
+		}
 
 		// 3) Restoranı oluştur ve menüyü yaz
 		Restoran restoran = new Restoran();
