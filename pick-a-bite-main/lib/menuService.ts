@@ -102,9 +102,60 @@ export const fetchMenuFromQrUrl = async (qrUrl: string): Promise<string> => {
 };
 
 /** Backend'den tüm restoranları ve her birinin menüsünü (paralel) çeker. */
+/** Backend DtoMenu yanıtını uygulama Restaurant modeline çevirir. */
+const menuDtoToRestaurant = (menuData: any): Restaurant | null => {
+  const r = menuData?.restoran;
+  if (!r?.id) return null;
+  const mesafe =
+    typeof r.enlem === "number" && typeof r.boylam === "number"
+      ? Math.round(
+          haversineKm(DEMO_KONUM.enlem, DEMO_KONUM.boylam, r.enlem, r.boylam) * 10
+        ) / 10
+      : undefined;
+  const kategoriler = Array.isArray(menuData.kategoriler) ? menuData.kategoriler : [];
+  const menuler: MenuItem[] = kategoriler.flatMap((k: any) =>
+    Array.isArray(k.urunler)
+      ? k.urunler.map((u: any) => ({
+          urunAdi: u.urunAdi || "",
+          fiyat: typeof u.fiyat === "number" ? u.fiyat : 0,
+          kategori: k.kategoriAdi || "",
+          aciklama: u.aciklama || "",
+          etiketler: Array.isArray(u.alerjenler) ? u.alerjenler : [],
+          tahminiKalori:
+            typeof u.tahminiKalori === "number" ? u.tahminiKalori : undefined,
+        }))
+      : []
+  );
+  return {
+    id: r.id,
+    ad: r.restoranAdi || "Bilinmeyen Restoran",
+    adres: r.adres || "",
+    enlem: r.enlem,
+    boylam: r.boylam,
+    mesafe,
+    menuler,
+  };
+};
+
 export const fetchAllRestaurantsFromBackend = async (): Promise<Restaurant[]> => {
+  // 1) Tercih edilen yol: TOPLU uç — tüm restoranlar + menüleri tek istekte.
+  //    (Yüzlerce restoranda restoran başına ayrı istek atmak haritayı kilitler.)
   try {
-    // 1) Restoran listesini al
+    const res = await apiFetch(`${BACKEND_URL}/restoranlar/menuler`, {}, 12000);
+    if (res.ok) {
+      const menuList = await res.json();
+      if (Array.isArray(menuList) && menuList.length > 0) {
+        return menuList
+          .map(menuDtoToRestaurant)
+          .filter((x): x is Restaurant => x !== null);
+      }
+    }
+  } catch (e) {
+    console.warn("Toplu menü ucu kullanılamadı, eski yola düşülüyor:", e);
+  }
+
+  // 2) Yedek yol: eski davranış — liste + restoran başına menü isteği.
+  try {
     const res = await apiFetch(`${BACKEND_URL}/restoranlar`, {}, 6000);
     if (!res.ok) throw new Error("Backend response not ok");
     const restoranList = await res.json();

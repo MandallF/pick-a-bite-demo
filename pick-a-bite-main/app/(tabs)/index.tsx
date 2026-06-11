@@ -69,13 +69,19 @@ export default function HomeScreen() {
     }, [])
   );
 
+  // Menüsü sisteme eklenmiş restoran mı? (QR keşfi/senkron öncesi boş olabilir)
+  const menusuVar = (rest: Restaurant): boolean =>
+    Array.isArray(rest.menuler) && rest.menuler.length > 0;
+
   // Tercihe uygun en az bir ürünü olan restoran mı?
   const uygunMu = (rest: Restaurant): boolean =>
     userPrefs.length > 0 && rest.menuler.some((item) => urunUygunMu(item, userPrefs));
 
-  // Harita pin rengi: tercih yok → mavi, uygun → yeşil, uygun değil → kırmızı
+  // Harita pin rengi: tercih yok ya da MENÜ BİLİNMİYOR → mavi (nötr),
+  // uygun → yeşil, menüsü var ama uygun değil → kırmızı.
+  // Menüsüz restoranı kırmızı boyamak yanıltıcı olur: uygunsuz değil, bilinmiyor.
   const pinRengi = (rest: Restaurant): string => {
-    if (userPrefs.length === 0) return "#2b6cb0"; // mavi
+    if (userPrefs.length === 0 || !menusuVar(rest)) return "#2b6cb0"; // mavi
     return uygunMu(rest) ? "#2f855a" : "#e53e3e"; // yeşil / kırmızı
   };
 
@@ -83,11 +89,14 @@ export default function HomeScreen() {
     ? restaurants.filter((r) => r.ad.toLowerCase().includes(searchText.toLowerCase()))
     : restaurants;
 
-  // Liste görünümünde: tercihe uygunları ve yakınları öne al
+  // Liste görünümünde: tercihe uygunlar → menüsü olanlar → yakınlar
   const sortedForList = [...filtered].sort((a, b) => {
     const ua = uygunMu(a) ? 0 : 1;
     const ub = uygunMu(b) ? 0 : 1;
     if (ua !== ub) return ua - ub;
+    const ma = menusuVar(a) ? 0 : 1;
+    const mb = menusuVar(b) ? 0 : 1;
+    if (ma !== mb) return ma - mb;
     return (a.mesafe ?? 999) - (b.mesafe ?? 999);
   });
 
@@ -116,8 +125,9 @@ export default function HomeScreen() {
   const initialRegion = {
     latitude: restaurants.find((r) => r.enlem != null)?.enlem ?? 40.195,
     longitude: restaurants.find((r) => r.boylam != null)?.boylam ?? 29.06,
-    latitudeDelta: 0.025,
-    longitudeDelta: 0.025,
+    // Bursa genelindeki restoranlar görünsün diye geniş başlangıç çerçevesi
+    latitudeDelta: 0.09,
+    longitudeDelta: 0.09,
   };
 
   return (
@@ -136,7 +146,9 @@ export default function HomeScreen() {
                 coordinate={{ latitude: r.enlem, longitude: r.boylam }}
                 title={r.ad}
                 description={
-                  userPrefs.length === 0
+                  !menusuVar(r)
+                    ? "Menü henüz eklenmedi · QR okutarak ekleyebilirsin"
+                    : userPrefs.length === 0
                     ? r.adres || "Menü için tıkla"
                     : uygunMu(r)
                     ? "✓ Tercihlerine uygun · Menü için tıkla"
@@ -177,7 +189,15 @@ export default function HomeScreen() {
                     {item.adres}
                   </Text>
                 </View>
-                {userPrefs.length > 0 &&
+                {!menusuVar(item) ? (
+                  <View style={styles.menuYokBadge}>
+                    <Ionicons name="help-circle-outline" size={13} color="#718096" />
+                    <Text style={styles.menuYokText}>
+                      Menü henüz yok — QR okutarak ekleyebilirsin
+                    </Text>
+                  </View>
+                ) : (
+                  userPrefs.length > 0 &&
                   (uygunMu(item) ? (
                     <View style={styles.uygunBadge}>
                       <Ionicons name="checkmark-circle" size={13} color="#2f855a" />
@@ -188,7 +208,8 @@ export default function HomeScreen() {
                       <Ionicons name="close-circle" size={13} color="#e53e3e" />
                       <Text style={styles.uygunsuzText}>Tercihlerine uygun değil</Text>
                     </View>
-                  ))}
+                  ))
+                )}
               </View>
               <Ionicons name="chevron-forward" size={20} color="#ccc" />
             </TouchableOpacity>
@@ -443,6 +464,18 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   uygunsuzText: { color: "#e53e3e", fontSize: 11, fontWeight: "600" },
+  menuYokBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 6,
+    backgroundColor: "#edf2f7",
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  menuYokText: { color: "#718096", fontSize: 11, fontWeight: "600" },
   emptyText: { textAlign: "center", color: "#999", marginTop: 40, fontSize: 14 },
 
   chatbotPanel: {

@@ -1,5 +1,7 @@
 package com.aliyilmaz.controller.impl;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,6 +37,12 @@ public class MenuController implements IMenuController {
 	@GetMapping("/restoranlar/{restoranId}/menu")
 	public DtoMenu menuGetir(@PathVariable Integer restoranId) {
 		return menuServices.menuGetir(restoranId);
+	}
+
+	@Override
+	@GetMapping("/restoranlar/menuler")
+	public List<DtoMenu> menuleriGetir() {
+		return menuServices.menuleriGetir();
 	}
 
 	@Override

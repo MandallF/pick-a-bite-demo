@@ -187,6 +187,28 @@ export default function RestaurantScreen() {
             </View>
           </View>
 
+          {/* Menü henüz eklenmemiş restoran (QR keşfi bekleniyor) */}
+          {totalProducts === 0 && (
+            <View style={styles.bosMenuKutu}>
+              <Ionicons name="restaurant-outline" size={40} color="#a0aec0" />
+              <Text style={styles.bosMenuBaslik}>Menü henüz eklenmedi</Text>
+              <Text style={styles.bosMenuText}>
+                Bu restoranın dijital menüsü sisteme henüz aktarılmadı.
+                Restorandaysanız masadaki QR menüyü okutarak menüyü siz
+                ekleyebilirsiniz — eklenen menü herkes için görünür olur ve
+                otomatik güncellenir.
+              </Text>
+              <TouchableOpacity
+                style={styles.bosMenuQrBtn}
+                onPress={() => router.push("/camera")}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="qr-code-outline" size={18} color="white" />
+                <Text style={styles.bosMenuQrText}>QR Menü Okut</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Kategoriler */}
           {menu.kategoriler.map((kategori) => (
             <View key={kategori.id} style={styles.categoryBlock}>
@@ -488,6 +510,36 @@ const styles = StyleSheet.create({
   priceText: { color: "white", fontWeight: "700", fontSize: 18, lineHeight: 20 },
   priceCurrency: { color: "white", fontSize: 10, opacity: 0.9 },
   detayIpucu: { color: "#a0aec0", fontSize: 10, marginTop: 6 },
+
+  /* Boş menü (QR keşfi bekleyen restoran) */
+  bosMenuKutu: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  bosMenuBaslik: { fontSize: 16, fontWeight: "700", color: "#4a5568" },
+  bosMenuText: {
+    color: "#718096",
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+  },
+  bosMenuQrBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#319795",
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    marginTop: 4,
+  },
+  bosMenuQrText: { color: "white", fontWeight: "700", fontSize: 14 },
 
   /* Ürün detay modalı */
   modalArkaplan: {

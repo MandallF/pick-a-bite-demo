@@ -1,5 +1,7 @@
 package com.aliyilmaz.controller;
 
+import java.util.List;
+
 import com.aliyilmaz.dto.DtoKategori;
 import com.aliyilmaz.dto.DtoKategoriIU;
 import com.aliyilmaz.dto.DtoMenu;
@@ -9,6 +11,8 @@ import com.aliyilmaz.dto.DtoUrunIU;
 public interface IMenuController {
 
 	DtoMenu menuGetir(Integer restoranId);
+
+	List<DtoMenu> menuleriGetir();
 
 	DtoKategori kategoriOlustur(Integer restoranId, DtoKategoriIU istek);
 

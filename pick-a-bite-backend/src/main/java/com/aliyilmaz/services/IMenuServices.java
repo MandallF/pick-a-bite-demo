@@ -1,5 +1,7 @@
 package com.aliyilmaz.services;
 
+import java.util.List;
+
 import com.aliyilmaz.dto.DtoKategori;
 import com.aliyilmaz.dto.DtoKategoriIU;
 import com.aliyilmaz.dto.DtoMenu;
@@ -9,6 +11,9 @@ import com.aliyilmaz.dto.DtoUrunIU;
 public interface IMenuServices {
 
 	DtoMenu menuGetir(Integer restoranId);
+
+	/** Tüm restoranların menüsünü tek listede döner (mobil için toplu uç). */
+	List<DtoMenu> menuleriGetir();
 
 	DtoKategori kategoriOlustur(Integer restoranId, DtoKategoriIU istek);
 

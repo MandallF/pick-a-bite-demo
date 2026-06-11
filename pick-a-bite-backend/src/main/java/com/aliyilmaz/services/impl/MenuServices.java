@@ -56,6 +56,26 @@ public class MenuServices implements IMenuServices {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
+	public List<DtoMenu> menuleriGetir() {
+		// Tüm restoranların menüsü TEK yanıtta: mobil uygulama harita/chatbot
+		// açılışında restoran başına ayrı istek atmak yerine bunu kullanır
+		// (yüzlerce restoranda N+1 istek sorununu önler).
+		List<DtoMenu> menuler = new ArrayList<>();
+		for (Restoran r : appRepository.findAll()) {
+			DtoMenu menu = new DtoMenu();
+			menu.setRestoran(restoranDto(r));
+			List<DtoKategori> kategoriler = new ArrayList<>();
+			for (Kategori k : kategoriRepository.findByRestoranIdOrderBySiraNoAsc(r.getId())) {
+				kategoriler.add(kategoriToDto(k));
+			}
+			menu.setKategoriler(kategoriler);
+			menuler.add(menu);
+		}
+		return menuler;
+	}
+
+	@Override
 	@Transactional
 	public DtoKategori kategoriOlustur(Integer restoranId, DtoKategoriIU istek) {
 		Restoran r = appRepository.findById(restoranId)
