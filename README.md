@@ -32,9 +32,12 @@ Pick A Bite, restoranda **"ne yiyeceğim?"** sorusunu çözen bir karar destek u
 |---|---------|----------|
 | 1 | **QR ile Menü Erişimi** | Masadaki QR kodu kameraya tut, menü anında açılır |
 | 2 | **AI Chatbot Öneri** | Doğal dilde sorgu (Groq Llama 3.3 70B) → menüden filtreli öneri |
-| 3 | **Konum Bazlı Keşif** | Harita üzerinde yakın restoranlar pin olarak |
-| 4 | **Menü Görüntüleme** | Kategorize menü: ad, açıklama, fiyat, kalori, alerjen rozetleri |
-| 5 | **Kişisel Tercihler** | Vegan / glütensiz / laktoz / alerjen / bütçe — AsyncStorage'da kalıcı |
+| 3 | **Konum Bazlı Keşif** | Harita üzerinde yakın restoranlar pin olarak; tercihe göre yeşil/kırmızı uygunluk renkleri |
+| 4 | **Menü Görüntüleme** | Kategorize menü: ad, açıklama, fiyat, ~kalori, alerjen rozetleri |
+| 5 | **Ürün Detayı** | Ürüne dokun → fiyat, tahminî kalori, alerjen ve tercihine göre uygunluk rozeti |
+| 6 | **Kişisel Tercihler** | Vegan / glütensiz / laktoz / alerjen / bütçe — "Tercihleri Kaydet" ile kalıcı |
+| 7 | **Kayıt / Giriş (JWT)** | Misafir + opsiyonel hesap: kayıt, giriş, çıkış; tokenlar güvenli saklanır |
+| 8 | **Otomatik Menü Senkronu** | Dijital menü kaynağı her 60 sn'de taranır; fiyat/ürün değişiklikleri uygulamaya kendiliğinden yansır |
 
 ---
 
@@ -46,7 +49,7 @@ Pick A Bite, restoranda **"ne yiyeceğim?"** sorusunu çözen bir karar destek u
 | **Harita** | react-native-maps |
 | **Backend** | Spring Boot 3.5.14, Java 17, Spring Data JPA, Hibernate |
 | **Veritabanı** | H2 (demo, PostgreSQL uyumlu mod) / PostgreSQL (production) |
-| **Auth** | Spring Security + JWT (jjwt 0.12.6) + BCrypt — *demo'da devre dışı* |
+| **Auth** | Spring Security + JWT (jjwt 0.12.6) + BCrypt — misafir + opsiyonel giriş |
 | **Yapay Zekâ** | Groq API (llama-3.3-70b-versatile) + Gemini (fallback) |
 | **Veri Toplama** | Python (pandas, requests) + Google Places API |
 
