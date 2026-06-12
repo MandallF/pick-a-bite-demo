@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Markdown from "react-native-markdown-display";
 
+import { apiJSON } from "../lib/api";
 import { Message, MenuItem, Restaurant } from "../lib/chatTypes";
 import {
   extractName,
@@ -51,11 +52,18 @@ const markdownStyles: any = {
 export default function ChatbotScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { qrData, restaurantId } = useLocalSearchParams<{ qrData?: string; restaurantId?: string }>();
+  const { qrData, restaurantId, ad } = useLocalSearchParams<{
+    qrData?: string;
+    restaurantId?: string;
+    ad?: string;
+  }>();
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
 
-  const restaurantName = qrData ? extractName(qrData as string) : undefined;
+  // Menü ekranından gelindiyse restoran adı paramla gelir; QR URL'inden
+  // gelindiyse alan adından türetilir.
+  const restaurantName =
+    (ad as string) || (qrData ? extractName(qrData as string) : undefined);
 
   const [userPrefs, setUserPrefs] = useState<string[]>([]);
   const [userButce, setUserButce] = useState<string>("");
@@ -86,7 +94,45 @@ export default function ChatbotScreen() {
         if (savedButce) setUserButce(savedButce);
       } catch { /* ignore */ }
 
-      // 2) QR Code varsa O menüyü çek, yoksa tüm restoranları çek
+      // 2) Menü ekranından gelindiyse (restaurantId) O restoranın menüsünü
+      //    backend'den çek — sohbet doğrudan o menü bağlamında başlar.
+      if (restaurantId) {
+        setStatusText("Menü yükleniyor...");
+        try {
+          const m: any = await apiJSON(`/restoranlar/${restaurantId}/menu`, {}, 8000);
+          let menuText = "";
+          for (const k of m?.kategoriler || []) {
+            menuText += `${k.kategoriAdi}:\n`;
+            for (const u of k.urunler || []) {
+              const kal = u.tahminiKalori != null ? `, ~${u.tahminiKalori} kcal` : "";
+              const alj =
+                u.alerjenler && u.alerjenler.length > 0
+                  ? ` [alerjen: ${u.alerjenler.join(", ")}]`
+                  : "";
+              const desc = u.aciklama ? ` — ${u.aciklama}` : "";
+              menuText += `  - ${u.urunAdi}: ${u.fiyat} TL${kal}${alj}${desc}\n`;
+            }
+          }
+          setMenuContext(menuText);
+          setStatusText("✓");
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === "welcome"
+                ? {
+                    ...msg,
+                    text: `✅ **${restaurantName}** menüsünü inceledim!\n\nBu menüyle ilgili her şeyi sorabilirsin — örneğin *"en hafif seçenek hangisi?"* ya da *"300 TL ile ne yiyebilirim?"* 🍽️`,
+                  }
+                : msg
+            )
+          );
+        } catch {
+          setStatusText("Menü alınamadı");
+        }
+        setIsInitializing(false);
+        return;
+      }
+
+      // 3) QR Code varsa O menüyü çek, yoksa tüm restoranları çek
       if (qrData) {
         // ✅ QR code'dan restoran menüsü çek
         setStatusText("Menü yükleniyor...");
@@ -143,7 +189,7 @@ export default function ChatbotScreen() {
     };
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qrData]);
+  }, [qrData, restaurantId]);
 
   // ── Mesaj gönder ──
   const sendMessage = useCallback(async (text: string) => {

@@ -263,8 +263,29 @@ export default function RestaurantScreen() {
             </View>
           ))}
 
-          <View style={{ height: 24 }} />
+          {/* Yüzen chatbot butonu menünün son ürünlerini kapatmasın */}
+          <View style={{ height: totalProducts > 0 ? 96 : 24 }} />
         </ScrollView>
+      )}
+
+      {/* ── BU MENÜ HAKKINDA SOR (chatbot, restoran bağlamıyla) ── */}
+      {menu && !loading && totalProducts > 0 && (
+        <TouchableOpacity
+          style={styles.chatFab}
+          activeOpacity={0.85}
+          onPress={() =>
+            router.push({
+              pathname: "/chatbot",
+              params: {
+                restaurantId: String(menu.restoran.id),
+                ad: menu.restoran.restoranAdi,
+              },
+            })
+          }
+        >
+          <Ionicons name="chatbubbles" size={20} color="white" />
+          <Text style={styles.chatFabText}>Bu Menü Hakkında Sor</Text>
+        </TouchableOpacity>
       )}
 
       {/* ── ÜRÜN DETAY MODALI ── */}
@@ -517,6 +538,26 @@ const styles = StyleSheet.create({
   priceText: { color: "white", fontWeight: "700", fontSize: 18, lineHeight: 20 },
   priceCurrency: { color: "white", fontSize: 10, opacity: 0.9 },
   detayIpucu: { color: "#a0aec0", fontSize: 10, marginTop: 6 },
+
+  /* Yüzen chatbot butonu */
+  chatFab: {
+    position: "absolute",
+    bottom: 24,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#319795",
+    borderRadius: 28,
+    paddingHorizontal: 20,
+    paddingVertical: 13,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  chatFabText: { color: "white", fontWeight: "700", fontSize: 14 },
 
   /* Boş menü (QR keşfi bekleyen restoran) */
   bosMenuKutu: {

@@ -90,6 +90,9 @@ kategorilere bak; sonra herhangi bir ürüne **dokun**.
   ve en altta gri **"tahminîdir, kesin sağlık tavsiyesi değildir"** uyarısı.
 - Vegan'a uygun bir üründe (örn. Tatlıcı Safa'da meyveli bir şey ya da Yeşil Ev'de salata)
   yeşil "uygun görünüyor" rozetini de gör.
+- Menünün altındaki **"Bu Menü Hakkında Sor"** butonuna dokun → chatbot O restoranın
+  menüsü yüklü olarak açılmalı ("✅ ... menüsünü inceledim!"); *"en hafif seçenek hangisi?"*
+  diye sor → cevap kategorilere gruplu ve fiyat artan sıralı gelmeli.
 
 ---
 
@@ -117,6 +120,13 @@ menüsünü** açmalı — aynı kaynaktan **ikinci bir kopya restoran açılmam
 **c) Geçersiz QR** (`merhaba-dunya-123`):
 → *"Geçersiz QR Kod"* uyarısı + **Geri Dön / Tamam** seçenekleri. "Tamam" deyip kamerada
 kalabilmeli, uyarı **kısır döngüye girmemeli**.
+
+**d) 🎬 "Restoran Eklendi" sahnesi (video için):** Kök klasördeki **`qr-kesif-demo.bat`**'a
+çift tıkla — sahte restoran sitesini (Köfteci Niyazi Usta) başlatır ve güncel IP'yle
+**qr-4-kesif-demo.png**'yi üretip açar. Telefonla okut →
+*"Restoran Eklendi 🎉 — Köfteci Niyazi Usta (9 ürün)"* + menü açılır; haritada yeni pin!
+Sahneyi tekrar çekmek istersen restoranı silip yeniden okutman yeterli (bat penceresi
+silme komutunu gösterir). Gerçek kayıtlar bozulmaz.
 
 ---
 

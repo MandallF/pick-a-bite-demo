@@ -114,6 +114,33 @@ public class MenuKaynakOkuyucu {
 				"Bu adresten menü çıkarılamadı. Sayfa bir dijital menü içermiyor olabilir.");
 	}
 
+	/**
+	 * Sayfanın {@code <title>} değerini döner (restoran adı tahmini için).
+	 * Erişilemezse ya da başlık yoksa null — çağıran taraf alan adına düşer.
+	 */
+	public String sayfaBasligi(String url) {
+		try {
+			URI uri = dogrula(url);
+			String html = govdeGetir(uri);
+			Matcher m = Pattern.compile("<title[^>]*>([^<]{2,120})</title>",
+					Pattern.CASE_INSENSITIVE).matcher(html);
+			if (m.find()) {
+				String baslik = m.group(1)
+						.replace("&amp;", "&").replace("&quot;", "\"")
+						.replace("&#39;", "'").replace("&nbsp;", " ")
+						.trim();
+				// "Ad | Menü" / "Ad - Anasayfa" gibi eklerin ilk parçasını al
+				baslik = baslik.split("\\s*[|•]\\s*")[0].trim();
+				if (!baslik.isBlank()) {
+					return baslik.length() > 80 ? baslik.substring(0, 80) : baslik;
+				}
+			}
+		} catch (Exception e) {
+			log.debug("Sayfa başlığı alınamadı: {}", e.getMessage());
+		}
+		return null;
+	}
+
 	// ── HTTP + güvenlik ──────────────────────────────────────────
 
 	private URI dogrula(String url) {

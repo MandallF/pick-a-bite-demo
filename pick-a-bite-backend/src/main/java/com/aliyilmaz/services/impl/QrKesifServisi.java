@@ -101,9 +101,13 @@ public class QrKesifServisi {
 			return new DtoQrKesifSonuc(appServices.restoranGetir(r.getId()), false, urunSayisi);
 		}
 
-		// 3) Restoranı oluştur ve menüyü yaz
+		// 3) Restoranı oluştur ve menüyü yaz.
+		//    Ad önceliği: istekle gelen ad > sayfa başlığı (<title>) > alan adı.
+		String ad = istek.getRestoranAdi() != null && !istek.getRestoranAdi().isBlank()
+				? istek.getRestoranAdi().trim()
+				: menuKaynakOkuyucu.sayfaBasligi(url);
 		Restoran restoran = new Restoran();
-		restoran.setRestoranAdi(restoranAdiBelirle(istek, url));
+		restoran.setRestoranAdi(ad != null && !ad.isBlank() ? ad : restoranAdiBelirle(istek, url));
 		restoran.setEnlem(istek.getEnlem() != null ? istek.getEnlem() : VARSAYILAN_ENLEM);
 		restoran.setBoylam(istek.getBoylam() != null ? istek.getBoylam() : VARSAYILAN_BOYLAM);
 		restoran.setAciklama("QR keşfiyle eklendi — menü kaynağı otomatik senkronlanır.");
