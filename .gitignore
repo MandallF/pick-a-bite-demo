@@ -46,6 +46,9 @@ out/
 # Demo runtime artifacts
 expo-tunnel-qr.png
 expo-qr.png
+# qr-4 keşif demo QR'i her çalıştırmada LAN IP'ye göre yeniden üretilir
+# (dinamik); qr-1/2/3 sabit olduğu için onlar repoda kalır.
+test-qr/qr-4-kesif-demo.png
 # NOT: pickabite-h2.mv.db (ornek 4 restoran + 20 urun) BILEREK repoya dahil
 # edildi ki baska bir cihazda clone sonrasi veritabani HAZIR gelsin
 # (seed adimi gerekmez). Sadece gecici H2 dosyalarini haric tutuyoruz:

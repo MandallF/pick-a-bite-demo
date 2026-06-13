@@ -156,7 +156,7 @@ export default function ProfileScreen() {
         const savedButce = await AsyncStorage.getItem("userButce");
         if (savedButce) setButce(savedButce);
       } catch (e) {
-        console.log("Tercihler yüklenemedi:", e);
+        console.warn("Tercihler yüklenemedi:", e);
       }
     };
     loadPreferences();
@@ -190,7 +190,7 @@ export default function ProfileScreen() {
         [{ text: "Tamam", onPress: () => router.back() }]
       );
     } catch (e) {
-      console.log("Tercihler kaydedilemedi:", e);
+      console.warn("Tercihler kaydedilemedi:", e);
       Alert.alert("Hata", "Tercihler kaydedilemedi. Lütfen tekrar deneyin.");
     }
   };

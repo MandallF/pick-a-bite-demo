@@ -49,7 +49,6 @@ export default function CameraScreen() {
     processingRef.current = true;
 
     setScanned(true);
-    console.log("QR DATA:", data);
 
     // 1) QR bir web URL'i ise: QR KEŞFİ — menü sunucuda çıkarılıp KALICI
     //    kaydedilir (restoran tüm kullanıcılar için menülü olur ve otomatik

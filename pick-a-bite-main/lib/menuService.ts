@@ -46,24 +46,29 @@ export const extractName = (qr: string): string => {
  * başarısız olursa sayfayı HTML olarak çekip düz metne çevirir.
  */
 export const fetchMenuFromQrUrl = async (qrUrl: string): Promise<string> => {
-  // 1) Önce script.js dene
+  // Not: Bu yalnızca yedek yoldur. Asıl QR menü çıkarımı backend'in
+  // /restoranlar/qr-kesif ucunda (güvenli, sunucu tarafı) yapılır; bu işlev
+  // sadece backend'e ulaşılamadığında chatbot'un geçici analizi için çalışır.
+
+  // 1) Önce script.js dene (dijital QR menü siteleri)
   try {
     const base = qrUrl.endsWith("/") ? qrUrl : qrUrl + "/";
-    const jsUrl = base + "script.js";
-    console.log("[QR] script.js deneniyor:", jsUrl);
-    const res = await apiFetch(jsUrl, {}, 8000);
+    const res = await apiFetch(base + "script.js", {}, 8000);
     if (!res.ok) throw new Error(`script.js ${res.status}`);
     const js = await res.text();
-    console.log("[QR] script.js alındı, boyut:", js.length);
 
-    // Hem tek satır hem çok satır array'i yakala
-    const match = js.match(/(?:const|let|var)\s+categories\s*=\s*(\[[\s\S]*?\]\s*;)/);
-    if (!match) throw new Error("categories değişkeni bulunamadı");
+    const match = js.match(/(?:const|let|var)\s+categories\s*=\s*(\[[\s\S]*?\])\s*;/);
+    if (!match) throw new Error("categories bulunamadı");
 
-    // eslint-disable-next-line no-eval
-    const cats: any[] = eval(match[1]);
-    console.log("[QR] Kategori sayısı:", cats.length);
-    const result = cats
+    // GÜVENLİK: eval KULLANMA — QR'dan gelen site rastgele kod çalıştırabilirdi.
+    // JS dizi literalini güvenli biçimde JSON'a normalize edip parse ediyoruz.
+    const jsonText = match[1]
+      .replace(/([{,]\s*)([A-Za-z_]\w*)\s*:/g, '$1"$2":') // tırnaksız anahtar -> "anahtar":
+      .replace(/'/g, '"') // tek tırnak -> çift tırnak
+      .replace(/,(\s*[}\]])/g, "$1"); // sondaki fazlalık virgül
+    const cats: any[] = JSON.parse(jsonText);
+
+    return cats
       .map((cat) => {
         const items = (cat.items || [])
           .map(
@@ -74,18 +79,15 @@ export const fetchMenuFromQrUrl = async (qrUrl: string): Promise<string> => {
         return `${cat.title || cat.kategoriAdi || "Kategori"}:\n${items}`;
       })
       .join("\n\n");
-    console.log("[QR] Menü metni oluşturuldu, karakter:", result.length);
-    return result;
-  } catch (e: any) {
-    console.warn("[QR] script.js başarısız:", e.message, "→ HTML fallback deneniyor");
+  } catch {
+    // script.js yok ya da güvenli ayrıştırılamadı → HTML metnine düş
   }
 
-  // 2) Doğrudan URL'yi HTML olarak çek
+  // 2) Doğrudan URL'yi HTML olarak çek ve metni ayıkla
   try {
     const res = await apiFetch(qrUrl, {}, 8000);
     if (!res.ok) throw new Error(`URL ${res.status}`);
     const html = await res.text();
-    console.log("[QR] HTML alındı, boyut:", html.length);
     const text = html
       .replace(/<script[\s\S]*?<\/script>/gi, "")
       .replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -93,10 +95,8 @@ export const fetchMenuFromQrUrl = async (qrUrl: string): Promise<string> => {
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 4000);
-    console.log("[QR] HTML metni çıkarıldı, karakter:", text.length);
     return `(Sayfa içeriği):\n${text}`;
-  } catch (e2: any) {
-    console.error("[QR] HTML fallback da başarısız:", e2.message);
+  } catch {
     return "";
   }
 };
