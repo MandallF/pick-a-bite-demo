@@ -43,9 +43,24 @@ public class MenuKaynakOkuyucu {
 
 	private static final Pattern CATEGORIES_DESENI = Pattern
 			.compile("(?:const|let|var)\\s+categories\\s*=\\s*(\\[[\\s\\S]*?\\])\\s*;");
-	// "Adana Dürüm 250 TL" / "Künefe ..... 145,50 ₺" benzeri satırlar
+	// "Adana Dürüm 250 TL" / "Künefe 145,50 ₺" / "Kuzu Döner 750gr 1.475 TL"
+	// Fiyat: binlik noktalı (1.475) ya da düz (985), opsiyonel virgüllü kuruş.
 	private static final Pattern METIN_URUN_DESENI = Pattern.compile(
-			"([A-Za-zÇĞİÖŞÜçğıöşü][A-Za-zÇĞİÖŞÜçğıöşü0-9 \\-'&.()]{2,60}?)[\\s.·:]{1,12}(\\d{1,5}(?:[.,]\\d{1,2})?)\\s*(?:TL|tl|₺)");
+			"([A-Za-zÇĞİÖŞÜçğıöşü][A-Za-zÇĞİÖŞÜçğıöşü0-9 \\-'&.()]{2,60}?)[\\s.·:]{1,12}(\\d{1,3}(?:\\.\\d{3})+|\\d{1,5})(?:,(\\d{1,2}))?\\s*(?:TL|tl|₺)");
+
+	// Türk restoran menülerinde yaygın bölüm başlıkları: sayfa metninde ürün
+	// adının önüne yapışırlar ("Tatlı Çeşitleri Dondurma 100 TL") — önek
+	// addan ayrılır ve gerçek kategori olarak kullanılır.
+	private static final Pattern BOLUM_ONEKI = Pattern.compile(
+			"^(Kilo Üstü Balıklar|Deniz Mezeleri|Meze Çeşitleri|Tatlı Çeşitleri|Izgara Çeşitleri|"
+					+ "Salata Çeşitleri|Tava Çeşitleri|Çorba Çeşitleri|Ara Sıcaklar|İçecekler|"
+					+ "Içecekler|Kavurma|Izgaralar|Salatalar|Tatlılar|Mezeler|Çorbalar|Kebaplar|"
+					+ "Pideler|Dürümler|Burgerler|Kahvaltılıklar|Yan Lezzetler|Ana Yemekler)\\s+(.+)$");
+
+	// "eti gururla sunuyoruz ÜRÜNLERİMİZ Kuzu Döner..." gibi yapışan tanıtım
+	// metni: TAMAMI BÜYÜK başlık kelimesinden sonrasını ürün adı say.
+	private static final Pattern BUYUK_BASLIK = Pattern.compile(
+			".*\\b([A-ZÇĞİÖŞÜ]{6,})\\b\\s+(.{3,})$");
 
 	/**
 	 * Üretimde false yapılmalı: yerel/özel ağ adreslerine istek (SSRF) engellenir.
@@ -187,7 +202,10 @@ public class MenuKaynakOkuyucu {
 		if (govde.length() > MAKS_GOVDE) {
 			govde = govde.substring(0, MAKS_GOVDE);
 		}
-		return govde;
+		// Ayrışık unicode'u (İ = I + nokta) tek karaktere indir — tüm
+		// ayrıştırma yolları (script.js, HTML metni, sayfa başlığı) düzgün
+		// Türkçe karakter görsün.
+		return java.text.Normalizer.normalize(govde, java.text.Normalizer.Form.NFC);
 	}
 
 	// ── Ayrıştırma ───────────────────────────────────────────────
@@ -226,37 +244,91 @@ public class MenuKaynakOkuyucu {
 	}
 
 	private List<KaynakKategori> metindenParse(String html) {
-		String metin = html
+		// NFC normalizasyonu kritik: bazı siteler "İ/Ö/ğ" harflerini ayrışık
+		// (harf + birleşen aksan) kodlar; normalize edilmezse regex harfi
+		// tanımaz ve adların başı kırpılır ("İzmir" -> "zmir", "Döner" -> "ner").
+		String metin = java.text.Normalizer
+				.normalize(html, java.text.Normalizer.Form.NFC)
+				// <head> (title/meta) komple atılır — yoksa sayfa başlığı ilk
+				// ürünün adına yapışır ("Site Adı Izgaralar Kuzu Döner").
+				.replaceAll("(?is)<head.*?</head>", " ")
 				.replaceAll("(?is)<script.*?</script>", " ")
 				.replaceAll("(?is)<style.*?</style>", " ")
 				.replaceAll("<[^>]+>", " ")
 				.replaceAll("&nbsp;", " ")
 				.replaceAll("\\s+", " ");
 
-		KaynakKategori kk = new KaynakKategori();
-		kk.kategoriAdi = "Menü";
-		kk.urunler = new ArrayList<>();
+		// Bölüm başlıkları gerçek kategorilere dönüşür; eşleşmeyenler "Menü"de
+		java.util.LinkedHashMap<String, KaynakKategori> kategoriler = new java.util.LinkedHashMap<>();
+		java.util.Set<String> gorulenAdlar = new java.util.HashSet<>();
+		int toplam = 0;
 
 		Matcher m = METIN_URUN_DESENI.matcher(metin);
-		while (m.find() && kk.urunler.size() < MAKS_URUN) {
-			KaynakUrun ku = new KaynakUrun();
-			ku.urunAdi = m.group(1).trim();
-			ku.fiyat = new BigDecimal(m.group(2).replace(",", "."));
-			// Aynı ad ikinci kez gelirse atla (sayfa tekrarları)
-			boolean tekrar = kk.urunler.stream()
-					.anyMatch(u -> u.urunAdi.equalsIgnoreCase(ku.urunAdi));
-			if (!tekrar && ku.fiyat.compareTo(BigDecimal.ZERO) > 0) {
-				kk.urunler.add(ku);
+		while (m.find() && toplam < MAKS_URUN) {
+			String ad = adTemizle(m.group(1));
+			if (ad == null) {
+				continue;
 			}
+			String kategori = "Menü";
+			Matcher bolum = BOLUM_ONEKI.matcher(ad);
+			if (bolum.matches() && bolum.group(2).trim().length() >= 3) {
+				kategori = bolum.group(1).trim();
+				ad = bolum.group(2).trim();
+			}
+
+			// Binlik nokta kaldır (1.475 -> 1475), virgül kuruş ekle (145,50)
+			BigDecimal fiyat = new BigDecimal(
+					m.group(2).replace(".", "") + (m.group(3) != null ? "." + m.group(3) : ""));
+			if (fiyat.compareTo(BigDecimal.ZERO) <= 0) {
+				continue;
+			}
+			String anahtar = (kategori + "|" + ad).toLowerCase();
+			if (!gorulenAdlar.add(anahtar)) {
+				continue; // sayfa tekrarları
+			}
+
+			KaynakUrun ku = new KaynakUrun();
+			ku.urunAdi = ad;
+			ku.fiyat = fiyat;
+			kategoriler.computeIfAbsent(kategori, k -> {
+				KaynakKategori kk = new KaynakKategori();
+				kk.kategoriAdi = k;
+				kk.urunler = new ArrayList<>();
+				return kk;
+			}).urunler.add(ku);
+			toplam++;
 		}
 
-		List<KaynakKategori> sonuc = new ArrayList<>();
-		// Kalite eşiği: metin yedeği en az 3 ürün bulamadıysa menü SAYILMAZ —
-		// sayfadaki tek tük "... 100 TL" eşleşmesi sahte menü üretmesin.
-		if (kk.urunler.size() >= 3) {
-			sonuc.add(kk);
+		// Kalite eşiği: metin yedeği toplamda en az 3 ürün bulamadıysa menü
+		// SAYILMAZ — tek tük "... 100 TL" eşleşmesi sahte menü üretmesin.
+		return toplam >= 3 ? new ArrayList<>(kategoriler.values()) : new ArrayList<>();
+	}
+
+	/**
+	 * Sayfa akışından yapışan tanıtım/başlık artıklarını üründen ayıklar.
+	 * Null dönerse ürün atlanır.
+	 */
+	private static String adTemizle(String ham) {
+		String ad = ham.trim();
+		// "... ÜRÜNLERİMİZ Kuzu Döner" gibi: tamamı büyük başlıktan sonrasını al
+		Matcher baslik = BUYUK_BASLIK.matcher(ad);
+		if (baslik.matches()) {
+			ad = baslik.group(2).trim();
 		}
-		return sonuc;
+		// Küçük harfle başlayan kırpıntı/tanıtım kelimelerini at; ad ilk
+		// büyük harfli kelimeden başlasın ("eti gururla sunuyoruz Kuzu..." -> "Kuzu...")
+		while (!ad.isEmpty() && Character.isLowerCase(ad.charAt(0))) {
+			int bosluk = ad.indexOf(' ');
+			if (bosluk < 0) {
+				return null; // tamamen kırpıntı
+			}
+			ad = ad.substring(bosluk + 1).trim();
+		}
+		// Çok kısa ya da harf içermeyen kalıntılar ürün değildir
+		if (ad.length() < 3 || !ad.chars().anyMatch(Character::isLetter)) {
+			return null;
+		}
+		return ad;
 	}
 
 	private static String ilkDolu(JsonNode node, String... alanlar) {
