@@ -31,6 +31,19 @@ function groqKeyBul() {
 
 const bekle = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Web kazımadan bozuk gelmiş olabilecek ad: küçük harfle başlıyor (baş harf
+// kırpılmış), çok kısa, harf içermiyor ya da aşırı uzun (ürünler birleşmiş).
+const adSupheli = (ad) => {
+  const t = (ad || "").trim();
+  return (
+    /^[a-zçğıöşü]/.test(t) ||
+    t.length < 3 ||
+    !/[A-Za-zÇĞİÖŞÜçğıöşü]/.test(t) ||
+    t.split(/\s+/).length > 6 ||
+    /\d[.,]\d{3}/.test(t) // ad içinde binlik fiyat artığı (1.475) = birleşmiş ürün
+  );
+};
+
 async function groqZenginlestir(apiKey, urunler) {
   const liste = urunler
     .map((u) => `- id:${u.id} | ${u.urunAdi} | kategori: ${u.kategori} | restoran: ${u.restoran}`)
@@ -49,7 +62,15 @@ async function groqZenginlestir(apiKey, urunler) {
         {
           role: "system",
           content:
-            'Türk restoran menüleri konusunda uzmansın. Verilen her ürün için TAHMİNÎ bilgiler üret ve YALNIZCA şu JSON şemasıyla yanıt ver: {"urunler":[{"id":<sayı>,"tahminiKalori":<porsiyon başına kcal, tam sayı>,"aciklama":"<en fazla 90 karakter, Türkçe, tipik içindekileri anlatan kısa açıklama>","alerjenler":["..."]}]}. Alerjen listesi için YALNIZCA şu değerleri kullan: gluten, süt, yumurta, fıstık, kuruyemiş, balık, kabuklu deniz ürünleri, soya, susam, hardal. Ürünün tipik tarifinde bulunması MUHTEMEL alerjenleri yaz; emin değilsen boş bırak. Uydurma marka/iddia ekleme.',
+            'Türk restoran menüleri konusunda uzmansın. Verilen her ürün için TAHMİNÎ bilgiler üret. ' +
+            'AD DÜZELTME: ürün adı web kazımadan bozuk gelebilir (eksik baş harf: "zmir"->"İzmir", "ner"->"Döner"; ' +
+            'yapışık tanıtım metni; birden fazla ürün/fiyat birbirine karışmış). Ad AÇIKÇA bozuksa kategori ve fiyata ' +
+            'bakarak en olası HALİNE düzelt; normal görünüyorsa adDuzeltme=null bırak (adı asla değiştirme/uydurma). ' +
+            'YALNIZCA şu JSON şemasıyla yanıt ver: {"urunler":[{"id":<sayı>,"adDuzeltme":<düzeltilmiş ad ya da null>,' +
+            '"tahminiKalori":<porsiyon başına kcal, tam sayı>,"aciklama":"<en fazla 90 karakter, Türkçe, tipik ' +
+            'içindekileri anlatan kısa açıklama>","alerjenler":["..."]}]}. Alerjen listesi için YALNIZCA şu değerleri ' +
+            'kullan: gluten, süt, yumurta, fıstık, kuruyemiş, balık, kabuklu deniz ürünleri, soya, susam, hardal. ' +
+            'Ürünün tipik tarifinde bulunması MUHTEMEL alerjenleri yaz; emin değilsen boş bırak. Uydurma marka/iddia ekleme.',
         },
         { role: "user", content: `Şu ürünleri zenginleştir:\n${liste}` },
       ],
@@ -73,7 +94,8 @@ async function groqZenginlestir(apiKey, urunler) {
         urunIndex.set(u.id, u);
         const aciklamaYok = !u.aciklama || u.aciklama.trim() === "";
         const kaloriYok = u.tahminiKalori == null;
-        if (aciklamaYok || kaloriYok) {
+        const adBozuk = adSupheli(u.urunAdi);
+        if (aciklamaYok || kaloriYok || adBozuk) {
           eksikler.push({
             id: u.id,
             urunAdi: u.urunAdi,
@@ -98,8 +120,17 @@ async function groqZenginlestir(apiKey, urunler) {
       for (const s of sonuc) {
         const mevcut = urunIndex.get(s.id);
         if (!mevcut) continue;
+        // Adı YALNIZCA mevcut ad şüpheliyse ve AI geçerli bir düzeltme
+        // önerdiyse değiştir — sağlam adlara asla dokunma.
+        const adDuzeltilmis =
+          adSupheli(mevcut.urunAdi) &&
+          s.adDuzeltme &&
+          String(s.adDuzeltme).trim().length >= 2 &&
+          !adSupheli(s.adDuzeltme);
         const govde = {
-          urunAdi: mevcut.urunAdi,
+          urunAdi: adDuzeltilmis
+            ? String(s.adDuzeltme).trim().slice(0, 160)
+            : mevcut.urunAdi,
           aciklama: (mevcut.aciklama && mevcut.aciklama.trim() !== "")
             ? mevcut.aciklama
             : String(s.aciklama || "").slice(0, 200),
@@ -117,7 +148,12 @@ async function groqZenginlestir(apiKey, urunler) {
           headers: { "Content-Type": "application/json; charset=utf-8" },
           body: JSON.stringify(govde),
         });
-        if (res.ok) { yazilan++; g++; } else { hata++; }
+        if (res.ok) {
+          yazilan++; g++;
+          if (adDuzeltilmis) {
+            console.log(`\n    ad düzeltildi: "${mevcut.urunAdi}" -> "${govde.urunAdi}"`);
+          }
+        } else { hata++; }
       }
       console.log(`${g} ürün güncellendi`);
     } catch (e) {
