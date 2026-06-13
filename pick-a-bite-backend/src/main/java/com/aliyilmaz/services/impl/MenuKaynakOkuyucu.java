@@ -62,6 +62,9 @@ public class MenuKaynakOkuyucu {
 	private static final Pattern BUYUK_BASLIK = Pattern.compile(
 			".*\\b([A-ZÇĞİÖŞÜ]{6,})\\b\\s+(.{3,})$");
 
+	// Ada gömülü binlik fiyat artığı (TL'siz "1.475"): iki ürün yapışmış demek.
+	private static final Pattern GOMULU_FIYAT = Pattern.compile("\\d[.,]\\d{3}\\s+(.+)$");
+
 	/**
 	 * Üretimde false yapılmalı: yerel/özel ağ adreslerine istek (SSRF) engellenir.
 	 * Demo, yerel test sitesiyle çalışabilsin diye varsayılan açık.
@@ -310,6 +313,18 @@ public class MenuKaynakOkuyucu {
 	 */
 	private static String adTemizle(String ham) {
 		String ad = ham.trim();
+		// Ada gömülü binlik fiyat (ör. "...750gr 1.475 Kuzu Döner 1000gr"): iki
+		// ürün tek satıra yapışmış, satırın TL'li fiyatı SON ürüne ait. Gömülü
+		// fiyattan SONRASINI ürün adı say ("Kuzu Döner 1000gr"). Birden çok
+		// gömülü fiyat varsa SONUNCUSUNDAN sonrasını al.
+		Matcher gomulu = GOMULU_FIYAT.matcher(ad);
+		String sonParca = null;
+		while (gomulu.find()) {
+			sonParca = gomulu.group(1).trim();
+		}
+		if (sonParca != null && sonParca.length() >= 3) {
+			ad = sonParca;
+		}
 		// "... ÜRÜNLERİMİZ Kuzu Döner" gibi: tamamı büyük başlıktan sonrasını al
 		Matcher baslik = BUYUK_BASLIK.matcher(ad);
 		if (baslik.matches()) {
