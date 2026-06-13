@@ -28,10 +28,9 @@ export default function HomeScreen() {
   const [userPrefs, setUserPrefs] = useState<string[]>([]);
   const [locationGranted, setLocationGranted] = useState(false);
 
-  // İlk açılış: konum izni + restoran verisi (bir kez)
+  // Konum izni (gereksinim: konum tabanlı keşif) — bir kez sorulur
   useEffect(() => {
     (async () => {
-      // 1) Konum izni (gereksinim: konum tabanlı keşif)
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === "granted") {
@@ -45,27 +44,24 @@ export default function HomeScreen() {
       } catch {
         /* izin akışı başarısız — varsayılan bölge ile devam */
       }
-
-      // 2) Restoranlar + menüleri (mesafe + uygunluk için)
-      try {
-        const data = await fetchAllRestaurantsFromBackend();
-        setRestaurants(data);
-      } catch (err) {
-        console.warn("Restoranlar yüklenemedi:", err);
-      } finally {
-        setLoading(false);
-      }
     })();
   }, []);
 
-  // Profil tercihleri: ekran HER odaklandığında tazelenir.
-  // (Bu ekran bir tab olduğu için bellekte kalır; profilden dönünce
-  // useEffect yeniden çalışmaz — bu yüzden useFocusEffect gerekir.)
+  // Restoranlar + profil tercihleri: ekran HER odaklandığında tazelenir.
+  // (Bu ekran bir tab olduğu için bellekte kalır; QR ile yeni restoran
+  // eklenip haritaya dönünce ya da profilden tercih değişip gelince
+  // useEffect yeniden çalışmaz — bu yüzden useFocusEffect gerekir.
+  // İlk çekimde "loading" gösterilir, sonraki odaklarda sessizce güncellenir.)
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.getItem("userPreferences")
         .then((saved) => setUserPrefs(saved ? JSON.parse(saved) : []))
         .catch(() => setUserPrefs([]));
+
+      fetchAllRestaurantsFromBackend()
+        .then((data) => setRestaurants(data))
+        .catch((err) => console.warn("Restoranlar yüklenemedi:", err))
+        .finally(() => setLoading(false));
     }, [])
   );
 

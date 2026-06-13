@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { apiJSON } from "../lib/api";
 
@@ -15,6 +15,13 @@ export default function CameraScreen() {
   const [scanned, setScanned] = useState(false);
   // QR doğrulanırken yükleme göstergesi
   const [checking, setChecking] = useState(false);
+  // Senkron kilit: kamera saniyede ~30 kare okur, setScanned ise asenkrondur.
+  // Bu yüzden tek bir QR, state güncellenene kadar birkaç kez işlenip Alert'leri
+  // ÜST ÜSTE yığabilir. useRef anında günceller → aynı turdaki kareleri bloklar.
+  const processingRef = useRef(false);
+  // Son işlenen geçersiz QR: kullanıcı kamerayı çevirene kadar aynı koda tekrar
+  // uyarı açma (kamera açık kalır, tek dokunuşla hızlı yeniden tarama mümkün).
+  const lastDataRef = useRef<string | null>(null);
 
   // İzin kontrolü
   if (!permission) {
@@ -36,8 +43,10 @@ export default function CameraScreen() {
 
   // QR okuma mantığı
   const handleBarcodeScanned = async ({ data }: any) => {
-    // Eğer daha önce tarama yapıldıysa işlemi durdur
-    if (scanned) return;
+    // Senkron kilit + aynı geçersiz QR'ı sessizce yoksay:
+    // Alert yığılmasını ve sonsuz uyarı döngüsünü tek satırda engeller.
+    if (processingRef.current || data === lastDataRef.current) return;
+    processingRef.current = true;
 
     setScanned(true);
     console.log("QR DATA:", data);
@@ -114,15 +123,22 @@ export default function CameraScreen() {
       throw new Error("kayıtlı değil");
     } catch {
       // Gereksinim Senaryo 2: geçersiz / kayıtlı olmayan QR
-      // Not: scanned=true bırakılır ki kamera aynı QR'ı otomatik tekrar
-      // okumasın (sonsuz uyarı döngüsünü önler). Kullanıcı kontrollü olarak
-      // "Geri Dön" ya da alttaki "Tekrar Tara" butonunu kullanır.
       Alert.alert(
         "Geçersiz QR Kod",
-        "Bu QR kod sisteme kayıtlı bir restorana ait değil. Geri dönebilir veya kamerayı farklı bir QR koda çevirip tekrar tarayabilirsiniz.",
+        "Bu QR kod sisteme kayıtlı bir restorana ait değil. Geri dönebilir ya da kamerayı farklı bir QR koda çevirip tekrar tarayabilirsiniz.",
         [
+          // Tek dokunuşla haritaya dön
           { text: "Geri Dön", style: "cancel", onPress: () => router.back() },
-          { text: "Tamam", onPress: () => {} },
+          {
+            // Kamerayı hemen tekrar aç. Bu geçersiz QR'ı hatırla ki ona bakmaya
+            // devam etsen bile yeni uyarı açılmasın; farklı QR'a çevirince okunur.
+            text: "Tamam",
+            onPress: () => {
+              lastDataRef.current = data;
+              processingRef.current = false;
+              setScanned(false);
+            },
+          },
         ]
       );
     } finally {
@@ -159,10 +175,15 @@ export default function CameraScreen() {
           <Text style={styles.text}>QR kodu çerçeve içine getir</Text>
         )}
 
-        {/* Tarama yapıldıysa (ve doğrulama bitmişse) tekrar tara butonu */}
+        {/* Tarama yapıldıysa (ve doğrulama bitmişse) tekrar tara butonu —
+            tam sıfırlama: aynı QR bile yeniden okunabilir */}
         {scanned && !checking && (
           <TouchableOpacity
-            onPress={() => setScanned(false)}
+            onPress={() => {
+              lastDataRef.current = null;
+              processingRef.current = false;
+              setScanned(false);
+            }}
             style={styles.resetBtn}
           >
             <Text style={{ color: "white" }}>Tekrar Tara</Text>
