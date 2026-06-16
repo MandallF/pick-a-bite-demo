@@ -239,7 +239,7 @@ taskkill /F /IM cloudflared.exe /IM java.exe /IM node.exe
 - **İş Planı** — haftalık görev dağılımı
 - **Katalog** — ürün tanıtım broşürü
 
-Ayrıca repoda: [`LAPTOP-KURULUM.md`](LAPTOP-KURULUM.md), [`TEST-REHBERI.md`](TEST-REHBERI.md), [`VIDEO-SENARYO.md`](VIDEO-SENARYO.md)
+Ayrıca repoda: [`LAPTOP-KURULUM.md`](LAPTOP-KURULUM.md) — başka bir cihazda sıfırdan çalıştırma rehberi.
 
 ---
 

@@ -58,3 +58,9 @@ pick-a-bite-backend/data/*.trace.db
 pick-a-bite-backend/data/*.lock.db
 # Cloudflare tunnel log (geçici)
 cf_tunnel.log
+
+# Kişisel hazırlık/çalışma dosyaları (repoda tutulmaz, yerelde kalır)
+SUNUM-HAZIRLIK.md
+TEST-REHBERI.md
+VIDEO-SENARYO.md
+urun-dokumu.txt
