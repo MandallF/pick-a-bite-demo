@@ -27,7 +27,6 @@ Pick A Bite, restoranda **"ne yiyeceğim?"** sorusunu çözen bir karar destek u
 - [Proje Yapısı](#proje-yapısı)
 - [Hızlı Başlangıç (Tek Tık)](#hızlı-başlangıç-tek-tık)
 - [Manuel Kurulum](#manuel-kurulum)
-- [Demo Akışı](#demo-akışı)
 - [API Uçları](#api-uçları)
 - [Sorun Giderme](#sorun-giderme)
 - [Belgeler](#belgeler)
@@ -186,18 +185,6 @@ Telefon, PC'deki backend'e iki şekilde ulaşabilir:
 - **Cloudflare Tunnel (önerilen):** `cloudflared tunnel --url http://localhost:8080` → çıkan URL'i `.env`'e yaz
 
 `demo-baslat.bat` ikinci yöntemi otomatik yapar.
-
----
-
-## Demo Akışı
-
-1. **Harita** — Açılışta Bursa'daki restoranlar pin olarak görünür (renk = uygunluk)
-2. **Profil** — Vegan/glütensiz/bütçe tercihleri kaydedilir, harita anında renklenir
-3. **Restoran** — Pin'e tıkla → menü ekranı (kategoriler, fiyat, kalori, alerjen, ürün detayı)
-4. **QR Tara** — Alt buton → kamera → masadaki QR → ilgili menü; bilinmeyen web menüsü → otomatik keşif
-5. **Chatbot** — Doğal dilde sorgu, örn. *"300 TL altı tavuklu yemek öner"* → restorana göre gruplu öneri
-
-**Örnek menülü restoranlar:** Tatlıcı Safa · Lezzet Durağı · Yeşil Ev · Lezzet Kebapçısı · Nilüfer Burhan Balıkçılık · Yusuf Çelik Döner · Hobi
 
 ---
 
