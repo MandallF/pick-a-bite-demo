@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { router, Tabs } from 'expo-router';
 import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
@@ -28,6 +28,18 @@ export default function TabLayout() {
         options={{
           title: 'Explore',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+        }}
+        listeners={{
+          // Bu sekmenin kendi ekranı yoktur; her durumda kullanıcıyı harita
+          // (Home) ana ekranına döndüren bir kısayoldur. Başka bir ekran
+          // (menü, sohbet, kamera vb.) açıksa önce onu kapatır.
+          tabPress: (e) => {
+            e.preventDefault();
+            if (router.canDismiss()) {
+              router.dismissAll();
+            }
+            router.navigate('/(tabs)');
+          },
         }}
       />
     </Tabs>
